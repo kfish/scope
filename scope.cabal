@@ -1,0 +1,41 @@
+Name:                scope
+
+Version:             0.4
+
+Synopsis:            An interactive renderer for plotting time-series data
+
+--Description:
+
+License:             BSD3
+License-file:        LICENSE
+Author:              Conrad Parker
+Maintainer:          conrad@metadecks.org
+Category:            Development
+
+Cabal-Version:       >= 1.8
+Build-type:          Simple
+Data-Files:          data/main.ui
+
+flag splitBase
+  description: Use the split-up base package.
+
+Executable scope
+  if flag(splitBase)
+    build-depends:
+      base >= 3 && < 6
+  else
+    build-depends:
+      base < 3
+
+  Main-Is:             main.hs
+  Other-Modules:       Children
+                       GUI
+  Hs-Source-Dirs:      src
+  Build-Depends:       glib, gtk, cairo
+
+------------------------------------------------------------------------
+-- Git repo
+--
+source-repository head
+  type: git
+  location: git://github.com/kfish/scope.git

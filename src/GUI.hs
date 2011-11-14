@@ -17,7 +17,7 @@ import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
 import qualified Graphics.Rendering.Cairo.Matrix as M
 
-import Paths_cairo_appbase as My
+import Paths_scope as My
 
 windowWidth, windowHeight :: Int
 windowWidth   = 500
