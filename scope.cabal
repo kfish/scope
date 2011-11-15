@@ -31,7 +31,11 @@ Executable scope
   Other-Modules:       Children
                        GUI
   Hs-Source-Dirs:      src
-  Build-Depends:       glib, gtk, cairo
+  Build-Depends:
+    cairo,
+    glib,
+    gtk,
+    zoom-cache                >= 0.7.0.0 && < 0.8
 
 ------------------------------------------------------------------------
 -- Git repo

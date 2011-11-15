@@ -4,12 +4,19 @@ module Main where
 
 import Control.Concurrent.Chan
 import Control.Monad (when)
+import Data.ZoomCache
+import Data.ZoomCache.Dump
+import System.Environment (getArgs)
 
 import Children
 import GUI
 
 main :: IO ()
 main = do
+    args <- getArgs
+    case args of
+        [] -> return ()
+        (path:_) -> zoomDumpFile standardIdentifiers 1 path
     setupMonitor
 
 setupMonitor :: IO ()
