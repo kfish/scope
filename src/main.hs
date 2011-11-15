@@ -9,7 +9,11 @@ import Children
 import GUI
 
 main :: IO ()
-main = later waitForChildren $ do
+main = do
+    setupMonitor
+
+setupMonitor :: IO ()
+setupMonitor = later waitForChildren $ do
     chan <- newChan
     _ <- forkChild (guiMain chan)
     monitor chan
