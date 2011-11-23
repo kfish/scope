@@ -1,4 +1,6 @@
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS -Wall #-}
 --
 -- Based on Gtk2Hs/demo/cairo/Drawing2.hs 
@@ -11,11 +13,23 @@ module GUI (
     guiMain
 ) where
 
+import Prelude hiding (catch)
+
 import Control.Concurrent
-import Control.Monad (replicateM_)
+import Control.Monad (foldM, replicateM_)
+import Control.Monad.CatchIO
+import Control.Monad.Reader
+import Data.Dynamic
+import Data.Maybe
+import qualified Data.Iteratee as I
+import Data.ZoomCache.Numeric
+import Data.ZoomCache.Texture
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
+import Graphics.Rendering.Cairo.Internal (Render(..))
 import qualified Graphics.Rendering.Cairo.Matrix as M
+
+import Text.Printf
 
 import Paths_scope as My
 
@@ -188,7 +202,7 @@ fillStroke = do
 example :: Int -> Int -> C.Render ()
 example width height = do
   prologue width height
-  example1
+  plot1
 
 -- Set up stuff
 prologue :: Int -> Int -> C.Render ()
@@ -233,6 +247,65 @@ grid xmin xmax ymin ymax =
       do C.moveTo x ymin
          C.lineTo x ymax
          C.stroke
+
+instance MonadCatchIO C.Render where
+  m `catch` f = mapRender (\m' -> m' `catch` \e -> runRender $ f e) m
+  block       = mapRender block
+  unblock     = mapRender unblock
+
+mapRender f = Render . f . runRender
+
+plot1 :: C.Render ()
+plot1 = keepState $ do
+    C.setSourceRGBA 0 0 0 0.7
+    m (-5) 0
+    let dataPath = "../zoom-cache/foo.zoom"
+        texturePath = "../texture-synthesis/texture.zoom"
+
+    -- Render texture
+    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture t)) texturePath
+
+    -- _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumDouble i)) dataPath
+    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumSummaryDouble 1 j)) dataPath
+    -- mapM_ (uncurry l) $ zip [-5, -4.9 ..] doubles
+    C.stroke
+    where
+        m = C.moveTo
+        l = C.lineTo
+
+        t :: I.Iteratee [(TimeStamp, TextureSlice)] C.Render Double
+        t = I.foldM renderTex (-5.0)
+
+        renderTex :: Double -> (TimeStamp, TextureSlice) -> C.Render Double
+        renderTex x (_ts, (TextureSlice tex)) = mapM_ (uncurry (texVal x)) (zip [-5.0, -3.0 ..] tex) >> return (x+2.0)
+
+        texVal :: Double -> Double -> Float -> C.Render ()
+        texVal x y v = do
+            C.setSourceRGB s s s
+            C.rectangle x y 2.0 2.0
+            C.fill
+            where
+                s = realToFrac v + 0.5
+
+        -- raw data
+        i :: I.Iteratee [(TimeStamp, Double)] C.Render Double
+        i = I.foldM renderRaw (-5.0) 
+
+        renderRaw :: Double -> (TimeStamp, Double) -> C.Render Double
+        renderRaw x (_ts, y) = l x (y * 5.0 / 1000.0) >> return (x+0.01)
+
+        -- Summary
+        j :: I.Iteratee [Summary Double] C.Render Double
+        j = I.foldM renderSummary (-5.0) 
+
+        renderSummary :: Double -> Summary Double -> C.Render Double
+        renderSummary x s = l x (fx s * 4.0 / 1000.0) >> return (x+0.1)
+
+        fx :: Summary Double -> Double
+        fx = numMax . summaryData
+
+-- doubles :: [Double]
+-- doubles = take 100 $ map ((* 5.0) . sin) [0.0, 0.1 ..]
 
 example1 :: C.Render ()
 example1 = do
