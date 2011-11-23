@@ -257,7 +257,6 @@ mapRender f = Render . f . runRender
 
 plot1 :: C.Render ()
 plot1 = keepState $ do
-    C.setSourceRGBA 0 0 0 0.7
     m (-5) 0
     let dataPath = "../zoom-cache/foo.zoom"
         texturePath = "../texture-synthesis/texture.zoom"
@@ -265,31 +264,42 @@ plot1 = keepState $ do
     -- Render texture
     _ <- I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture t)) texturePath
 
-    -- _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumDouble i)) dataPath
+    C.setSourceRGBA 0 0 0 0.7
+
+    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumDouble i)) dataPath
+
     _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumSummaryDouble 1 j)) dataPath
-    -- mapM_ (uncurry l) $ zip [-5, -4.9 ..] doubles
+
     C.stroke
     where
         m = C.moveTo
         l = C.lineTo
 
+        -- Texture
+        textureSize = (2^8)+1
+        texW = 10.0 / textureSize
+        texH = 10.0 / textureSize
+
         t :: I.Iteratee [(TimeStamp, TextureSlice)] C.Render Double
         t = I.foldM renderTex (-5.0)
 
         renderTex :: Double -> (TimeStamp, TextureSlice) -> C.Render Double
-        renderTex x (_ts, (TextureSlice tex)) = mapM_ (uncurry (texVal x)) (zip [-5.0, -3.0 ..] tex) >> return (x+2.0)
+        renderTex x (_ts, (TextureSlice tex)) = mapM_ (uncurry (texVal x)) (zip (iterate (+texH) (-5.0)) tex) >> return (x+texW)
 
         texVal :: Double -> Double -> Float -> C.Render ()
         texVal x y v = do
-            C.setSourceRGB s s s
-            C.rectangle x y 2.0 2.0
+            -- liftIO . putStrLn $ printf "(%f, %f) : %f" x y v
+            C.setSourceRGB s s (s-0.1)
+            C.rectangle x y (texW+0.01) (texH+0.01)
             C.fill
             where
-                s = realToFrac v + 0.5
+                s = (realToFrac v / 4) + 0.5
 
         -- raw data
         i :: I.Iteratee [(TimeStamp, Double)] C.Render Double
-        i = I.foldM renderRaw (-5.0) 
+        i = do
+            lift $ C.setSourceRGB 1.0 0 0
+            I.foldM renderRaw (-5.0)
 
         renderRaw :: Double -> (TimeStamp, Double) -> C.Render Double
         renderRaw x (_ts, y) = l x (y * 5.0 / 1000.0) >> return (x+0.01)
