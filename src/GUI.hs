@@ -288,7 +288,7 @@ plot1 = keepState $ do
 
     C.setSourceRGBA 0 0 0 0.7
 
-    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . enumDouble . I.joinI . I.take 1000 $ i)) dataPath
+    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . enumDouble . I.joinI . I.take dSize $ i)) dataPath
 
     _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumSummaryDouble 1 j)) dataPath
 
@@ -318,6 +318,9 @@ plot1 = keepState $ do
                 s = (realToFrac v / 4) + 0.5
 
         -- raw data
+        dSize = 500
+        dW = 10.0 / fromIntegral dSize
+
         i :: I.Iteratee [(TimeStamp, Double)] C.Render Double
         i = do
             lift $ C.setSourceRGB 1.0 0 0
@@ -327,7 +330,7 @@ plot1 = keepState $ do
         renderRaw x (_ts, y) = do
             -- liftIO . putStrLn $ printf "(%f, %f)" x y
             l x (y * 5.0 / 1000.0)
-            return (x+0.01)
+            return (x+dW)
 
         -- Summary
         j :: I.Iteratee [Summary Double] C.Render Double
