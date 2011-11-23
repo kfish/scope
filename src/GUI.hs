@@ -135,6 +135,9 @@ guiMain chan = do
     liftIO $ updateCanvas canvas
     return ()
 
+  statusbar <- G.statusbarNew
+  G.boxPackStart vbox statusbar G.PackNatural 0
+
   G.onDestroy window (myWriteChan chan "quit")
 #endif
 
