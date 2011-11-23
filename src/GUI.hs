@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -51,15 +52,16 @@ guiMain :: Chan String -> IO ()
 guiMain chan = do
   _ <- G.initGUI
 
+#if 0
   -- load up the gtk-builder file
   filename <- My.getDataFileName "data/main.ui"
   builder <- G.builderNew
   G.builderAddFromFile builder filename
-{-
-  let windowXml = case windowXmlM of
-        (Just wX) -> wX
-        Nothing -> error ("can't find the glade file " ++ filename)
--}
+
+--  let windowXml = case windowXmlM of
+--        (Just wX) -> wX
+--        Nothing -> error ("can't find the glade file " ++ filename)
+
   let get :: forall cls . G.GObjectClass cls
           => (G.GObject -> cls)
           -> String
@@ -115,6 +117,27 @@ guiMain chan = do
   -- set up the canvas
   canvas <- get G.castToDrawingArea "drawingarea1"
   _ <- G.onExpose canvas $ const (updateCanvas canvas)
+
+#else
+  window <- G.windowNew
+  G.widgetSetSizeRequest window windowWidth windowHeight
+  G.widgetSetAppPaintable window True
+  G.widgetSetDoubleBuffered window True
+
+  vbox <- G.vBoxNew False 0
+  G.containerAdd window vbox
+
+  canvas <- G.drawingAreaNew
+  G.boxPackStart vbox canvas G.PackGrow 0
+
+  -- _ <- G.onExpose canvas $ const (updateCanvas canvas)
+  cid <- canvas `G.on` G.exposeEvent $ G.tryEvent $ do
+    liftIO $ updateCanvas canvas
+    return ()
+
+  G.onDestroy window (myWriteChan chan "quit")
+#endif
+
   G.widgetShowAll window
   G.mainGUI
 
@@ -159,8 +182,7 @@ updateCanvas :: G.DrawingArea -> IO Bool
 updateCanvas canvas = do
   win <- G.widgetGetDrawWindow canvas
   (width, height) <- G.widgetGetSize canvas
-  G.renderWithDrawable win $
-      example width height
+  G.renderWithDrawable win $ example width height
   return True
 
 ----------------------------------------------------------------
@@ -266,7 +288,7 @@ plot1 = keepState $ do
 
     C.setSourceRGBA 0 0 0 0.7
 
-    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumDouble i)) dataPath
+    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . enumDouble . I.joinI . I.take 1000 $ i)) dataPath
 
     _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumSummaryDouble 1 j)) dataPath
 
@@ -302,7 +324,10 @@ plot1 = keepState $ do
             I.foldM renderRaw (-5.0)
 
         renderRaw :: Double -> (TimeStamp, Double) -> C.Render Double
-        renderRaw x (_ts, y) = l x (y * 5.0 / 1000.0) >> return (x+0.01)
+        renderRaw x (_ts, y) = do
+            -- liftIO . putStrLn $ printf "(%f, %f)" x y
+            l x (y * 5.0 / 1000.0)
+            return (x+0.01)
 
         -- Summary
         j :: I.Iteratee [Summary Double] C.Render Double
