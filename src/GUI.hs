@@ -284,15 +284,14 @@ plot1 = keepState $ do
         texturePath = "../texture-synthesis/texture.zoom"
 
     -- Render texture
-    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture t)) texturePath
+    I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture t)) texturePath
 
-    C.setSourceRGBA 0 0 0 0.7
+    -- Render raw data
+    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . enumDouble . I.joinI . I.take dSize $ i)) dataPath
 
-    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . enumDouble . I.joinI . I.take dSize $ i)) dataPath
+    -- Render summary data
+    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumSummaryDouble 1 j)) dataPath
 
-    _ <- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumSummaryDouble 1 j)) dataPath
-
-    C.stroke
     where
         m = C.moveTo
         l = C.lineTo
@@ -321,10 +320,11 @@ plot1 = keepState $ do
         dSize = 500
         dW = 10.0 / fromIntegral dSize
 
-        i :: I.Iteratee [(TimeStamp, Double)] C.Render Double
+        i :: I.Iteratee [(TimeStamp, Double)] C.Render ()
         i = do
             lift $ C.setSourceRGB 1.0 0 0
             I.foldM renderRaw (-5.0)
+            lift $ C.stroke
 
         renderRaw :: Double -> (TimeStamp, Double) -> C.Render Double
         renderRaw x (_ts, y) = do
@@ -333,8 +333,11 @@ plot1 = keepState $ do
             return (x+dW)
 
         -- Summary
-        j :: I.Iteratee [Summary Double] C.Render Double
-        j = I.foldM renderSummary (-5.0) 
+        j :: I.Iteratee [Summary Double] C.Render ()
+        j = do
+            lift $ C.setSourceRGB 1.0 0 0
+            I.foldM renderSummary (-5.0)
+            lift $ C.stroke
 
         renderSummary :: Double -> Summary Double -> C.Render Double
         renderSummary x s = l x (fx s * 4.0 / 1000.0) >> return (x+0.1)
