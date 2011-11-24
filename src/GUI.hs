@@ -45,10 +45,10 @@ data Scope = Scope
 data View = View
     { canvas :: G.DrawingArea
     , adj    :: G.Adjustment
-    , viewX  :: Double
-    , viewY  :: Double
-    , viewW  :: Double
-    , viewH  :: Double
+    , viewX1 :: Double
+    , viewY1 :: Double
+    , viewX2 :: Double
+    , viewY2 :: Double
     }
 
 scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
@@ -57,7 +57,7 @@ scopeNew c adj = Scope {
     }
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
-viewInit c adj = View c adj 0.0 (-1.0) 1.0 2.0
+viewInit c adj = View c adj 0.0 (-1.0) 1.0 1.0
 
 ----------------------------------------------------------------------
 
@@ -244,6 +244,24 @@ updateCanvas ref = do
 
 ----------------------------------------------------------------
 
+viewSetEnds :: Double -> Double -> View -> IO View
+viewSetEnds x1 x2 v@View{..} = do
+    putStrLn $ printf "setEnds %f %f\n" x1 x2
+    return view'
+    where
+      view' = v { viewX1 = x1, viewX2 = x2 }
+      w = min 1.0 (x2 - x1)
+
+scopeUpdate :: IORef Scope -> Scope -> IO ()
+scopeUpdate ref scope = do
+    writeIORef ref scope
+    let View{..} = view scope
+    G.adjustmentSetValue adj viewX1
+    G.adjustmentSetPageSize adj (viewX2 - viewX1)
+    G.widgetQueueDraw canvas
+
+----------------------------------------------------------------
+
 motion :: G.EventM G.EMotion ()
 motion = do
     (x, y) <- G.eventCoordinates
@@ -255,32 +273,43 @@ wheel ref = do
     liftIO $ do
         scope <- readIORef ref
         let mult = case dir of
-                       G.ScrollUp   -> 1.1
-                       G.ScrollDown -> 0.9
+                       G.ScrollUp   -> 0.9
+                       G.ScrollDown -> 1.1
                        _            -> 1.0
             v = view scope
-            oldW = viewW v
-            newW = max 1.0 (oldW * mult)
-            -- oldX = viewX v
-            -- newX = max (-1.0) (viewX v + (oldW - newW)/2)
-            -- view' = v { viewX = newX, viewW = newW}
-            view' = v { viewW = newW}
-            scope' = scope { view = view'}
-        G.adjustmentSetPageSize (adj v) (1.0 / viewW view')
-        writeIORef ref scope'
-        G.widgetQueueDraw (canvas v)
+            oldW = viewX2 v - viewX1 v
+            newW = min 1.0 (oldW * mult)
+            newX2 = if viewX2 v >= 0.99999
+                        then 1.0
+                        else viewX2 v - (oldW - newW)/2
+            (newX1, newX2') = if viewX1 v == 0.0
+                                  then (0.0, newW)
+                                  else (newX2 - newW, newX2)
+            
+        putStrLn $ printf "WHEEL mult %f newW %f" mult newW
+        view' <- viewSetEnds newX1 newX2' v
+        let scope' = scope { view = view'}
+        scopeUpdate ref scope'
 
 scroll :: IORef Scope -> IO ()
 scroll ref = do
     scope <- readIORef ref
     val <- G.adjustmentGetValue (adj . view $ scope)
-    putStrLn $ printf "%f" val
+    putStrLn $ printf "SCROLL %f" val
 
     let v = view scope
-        view' = v { viewX = val }
-        scope' = scope { view = view'}
-    liftIO $ writeIORef ref scope'
-    liftIO $ G.widgetQueueDraw (canvas v)
+        oldW = viewX2 v - viewX1 v
+        newX1 = if val < 0.0
+                    then 0.0
+                    else val
+        newX2 = newX1 + oldW
+        (newX1', newX2') = if newX2 > 1.0
+                              then (1.0 - oldW, 1.0)
+                              else (newX1, newX2)
+               
+    view' <- viewSetEnds newX1' newX2' v
+    let scope' = scope { view = view'}
+    scopeUpdate ref scope'
 
 ----------------------------------------------------------------
 
@@ -401,19 +430,21 @@ plot1 scope = keepState $ do
         -- dYRange = 200000000.0
         dYRange = 1000000000.0
 
-        canvasFold f = I.foldM f (negate (viewX v))
+        canvasFold f = I.foldM f (negate (viewX1 v))
+
+        stepWidth s = 1.0 / ((viewX2 v - viewX1 v) * fromIntegral s)
 
         -- Texture
         textureSize = (2^5)+1
-        texW = (viewW v) / textureSize
-        texH = (viewH v) / textureSize
+        texW = stepWidth textureSize
+        texH = (viewY2 v - viewY1 v) / fromIntegral textureSize
 
         t :: I.Iteratee [(TimeStamp, TextureSlice)] C.Render Double
         t = canvasFold renderTex
 
         renderTex :: Double -> (TimeStamp, TextureSlice) -> C.Render Double
         renderTex x (_ts, (TextureSlice tex)) = do
-            mapM_ (uncurry (texVal x)) (zip (iterate (+texH) (viewY v)) tex)
+            mapM_ (uncurry (texVal x)) (zip (iterate (+texH) (viewY1 v)) tex)
             return (x+texW)
 
         texVal :: Double -> Double -> Float -> C.Render ()
@@ -427,7 +458,7 @@ plot1 scope = keepState $ do
 
         -- raw data
         dSize = 5000
-        dW = (viewW v) / fromIntegral dSize
+        dW = stepWidth dSize
 
         i :: Double -> Double -> Double -> Double -> I.Iteratee [(TimeStamp, Double)] C.Render ()
         i yR r g b = do
@@ -438,12 +469,12 @@ plot1 scope = keepState $ do
         renderRaw :: Double -> Double -> (TimeStamp, Double) -> C.Render Double
         renderRaw yR x (_ts, y) = do
             -- liftIO . putStrLn $ printf "(%f, %f)" x y
-            l x (y * (viewH v)/ yR)
+            l x (y * (viewY2 v - viewY1 v)/ yR)
             return (x+dW)
 
         -- Summary
         sSize = 20
-        sW = (viewW v) / fromIntegral sSize
+        sW = stepWidth sSize
 
         j :: I.Iteratee [Summary Double] C.Render ()
         j = do
