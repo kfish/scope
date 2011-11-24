@@ -16,7 +16,7 @@
     </menu>
     <menu action="VMA"/>
     <menu action="HMA">
-      <menuitem action="about1"/>
+      <menuitem action="ABOUTA"/>
     </menu>
   </menubar>
 </ui>

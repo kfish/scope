@@ -158,11 +158,17 @@ guiMain chan = do
   delete1 <- G.actionNew "delete1" "Delete" (Just "Just a Stub") (Just G.stockDelete)
   delete1 `G.on` G.actionActivated $ myDelete
 
+  aboutdialog <- G.aboutDialogNew
+  abouta <- G.actionNew "ABOUTA" "About" (Just "Just a Stub") Nothing
+  abouta `G.on` G.actionActivated $ G.widgetShow aboutdialog
+  aboutdialog `G.on` G.response $ const $ G.widgetHide aboutdialog
+
   agr <- G.actionGroupNew "AGR"
   mapM_ (G.actionGroupAddAction agr) [fma, ema, vma, hma]
   mapM_ (\act -> G.actionGroupAddActionWithAccel agr act Nothing)
       [ new1, open1, save1, saveas1, quita
       , cut1, copy1, paste1, delete1
+      , abouta
       ]
 
   G.uiManagerInsertActionGroup ui agr 0
