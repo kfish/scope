@@ -130,10 +130,31 @@ guiMain chan = do
   canvas <- G.drawingAreaNew
   G.boxPackStart vbox canvas G.PackGrow 0
 
+  canvas `G.on` G.buttonPressEvent $ G.tryEvent $ do
+      liftIO $ putStrLn "Button pressed"
+  canvas `G.on` G.buttonReleaseEvent $ G.tryEvent $ do
+      liftIO $ putStrLn "Button released"
+  canvas `G.on` G.scrollEvent $ G.tryEvent $ wheel
+  canvas `G.on` G.keyPressEvent $ G.tryEvent $ do
+      liftIO $ putStrLn "Key pressed"
+  G.widgetAddEvents canvas
+    [ G.KeyPressMask
+    , G.KeyReleaseMask
+    , G.PointerMotionMask
+    , G.Button1MotionMask
+    , G.ScrollMask
+    ]
+
   -- _ <- G.onExpose canvas $ const (updateCanvas canvas)
   cid <- canvas `G.on` G.exposeEvent $ G.tryEvent $ do
     liftIO $ updateCanvas canvas
     return ()
+
+  adj <- G.adjustmentNew 50 0 100 5 20 15
+  adj `G.onValueChanged` (scroll adj)
+
+  scrollbar <- G.hScrollbarNew adj
+  G.boxPackStart vbox scrollbar G.PackNatural 0
 
   statusbar <- G.statusbarNew
   G.boxPackStart vbox statusbar G.PackNatural 0
@@ -142,6 +163,14 @@ guiMain chan = do
 
   G.widgetShowAll window
   G.mainGUI
+
+wheel :: G.EventM G.EScroll ()
+wheel = do
+    dir <- G.eventScrollDirection
+    case dir of
+        G.ScrollUp   -> liftIO $ putStrLn "Scrolling UP"
+        G.ScrollDown -> liftIO $ putStrLn "Scrolling Down"
+        _            -> liftIO $ putStrLn "Scrolling OMFGWHERE?"
 
 myQuit :: G.WidgetClass cls => cls -> Chan String -> IO ()
 myQuit window chan = do
@@ -186,6 +215,13 @@ updateCanvas canvas = do
   (width, height) <- G.widgetGetSize canvas
   G.renderWithDrawable win $ example width height
   return True
+
+----------------------------------------------------------------
+
+scroll :: G.Adjustment -> IO ()
+scroll adj = do
+    v <- G.adjustmentGetValue adj
+    putStrLn $ printf "%f" v
 
 ----------------------------------------------------------------
 
