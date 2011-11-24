@@ -325,14 +325,18 @@ plot1 = keepState $ do
     I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture t)) texturePath
 
     -- Render raw data
-    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . enumDouble . I.joinI . I.take dSize $ i)) dataPath
+    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] . I.joinI . enumDouble . I.joinI . I.take dSize $ i dYRange 0.3 0.7 0.2)) dataPath
+    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [2] . I.joinI . enumDouble . I.joinI . I.take dSize $ i 30000 0.7 0.3 0.2)) dataPath
 
     -- Render summary data
-    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI $ enumSummaryDouble 1 j)) dataPath
+    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] $ enumSummaryDouble 1 j)) dataPath
 
     where
         m = C.moveTo
         l = C.lineTo
+
+        -- dYRange = 1000.0
+        dYRange = 100000000.0
 
         -- Texture
         textureSize = (2^8)+1
@@ -355,19 +359,19 @@ plot1 = keepState $ do
                 s = (realToFrac v / 4) + 0.5
 
         -- raw data
-        dSize = 500
+        dSize = 5000
         dW = 10.0 / fromIntegral dSize
 
-        i :: I.Iteratee [(TimeStamp, Double)] C.Render ()
-        i = do
-            lift $ C.setSourceRGB 1.0 0 0
-            I.foldM renderRaw (-5.0)
+        i :: Double -> Double -> Double -> Double -> I.Iteratee [(TimeStamp, Double)] C.Render ()
+        i yR r g b = do
+            lift $ C.setSourceRGB r g b
+            I.foldM (renderRaw yR) (-5.0)
             lift $ C.stroke
 
-        renderRaw :: Double -> (TimeStamp, Double) -> C.Render Double
-        renderRaw x (_ts, y) = do
+        renderRaw :: Double -> Double -> (TimeStamp, Double) -> C.Render Double
+        renderRaw yR x (_ts, y) = do
             -- liftIO . putStrLn $ printf "(%f, %f)" x y
-            l x (y * 5.0 / 1000.0)
+            l x (y * 5.0 / yR)
             return (x+dW)
 
         -- Summary
@@ -378,7 +382,7 @@ plot1 = keepState $ do
             lift $ C.stroke
 
         renderSummary :: Double -> Summary Double -> C.Render Double
-        renderSummary x s = l x (fx s * 4.0 / 1000.0) >> return (x+0.1)
+        renderSummary x s = l x (fx s * 4.0 / dYRange) >> return (x+0.1)
 
         fx :: Summary Double -> Double
         fx = numMax . summaryData
