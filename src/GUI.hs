@@ -49,13 +49,10 @@ data View = View
     , viewH  :: Double
     }
 
--- Want to define viewport coords as (-1.0, -1.0) - (1.0, 1.0)
--- Atm, viewport coords are (-5.0, -5.0) - (5.0, 5.0)
-
 scopeNew :: Scope
 scopeNew = Scope {
-      -- view = View (-1.0) (-1.0) 2.0 2.0
-      view = View (-5.0) (-5.0) 10.0 10.0
+      -- Define viewport coords as (-1.0, -1.0) - (1.0, 1.0)
+      view = View (-1.0) (-1.0) 2.0 2.0
     }
 
 ----------------------------------------------------------------------
