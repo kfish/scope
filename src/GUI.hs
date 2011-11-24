@@ -143,13 +143,25 @@ guiMain chan = do
   hma <- G.actionNew "HMA" "Help" Nothing Nothing
 
   -- File menu
-  new1 <- G.actionNew "new1" "New" (Just "Just a Stub") (Just G.stockNew)
-  new1 `G.on` G.actionActivated $ myNew
-  open1 <- G.actionNew "open1" "Open" (Just "Just a Stub") (Just G.stockOpen)
-  save1 <- G.actionNew "save1" "Save" (Just "Just a Stub") (Just G.stockSave)
-  saveas1 <- G.actionNew "save_as1" "SaveAs" (Just "Just a Stub") (Just G.stockSaveAs)
+  newa <- G.actionNew "NEWA" "New" (Just "Just a Stub") (Just G.stockNew)
+  newa `G.on` G.actionActivated $ myNew
+  opena <- G.actionNew "OPENA" "Open" (Just "Just a Stub") (Just G.stockOpen)
+  savea <- G.actionNew "SAVEA" "Save" (Just "Just a Stub") (Just G.stockSave)
+  saveasa <- G.actionNew "SAVEASA" "Save As" (Just "Just a Stub") (Just G.stockSaveAs)
   quita <- G.actionNew "QUITA" "Quit" (Just "Just a Stub") (Just G.stockQuit)
   quita `G.on` G.actionActivated $ myQuit window chan
+
+  let fChooser action label = G.fileChooserDialogNew Nothing (Just window) action
+          [(G.stockCancel, G.ResponseCancel), (label, G.ResponseAccept)]
+
+  openDialog <- fChooser G.FileChooserActionOpen G.stockOpen
+  opena `G.on` G.actionActivated $ G.widgetShow openDialog
+  openDialog `G.on` G.response $ myFileOpen openDialog
+
+  saveDialog <- fChooser G.FileChooserActionSave G.stockSave
+  savea `G.on` G.actionActivated $ G.widgetShow saveDialog
+  saveasa `G.on` G.actionActivated $ G.widgetShow saveDialog
+  saveDialog `G.on` G.response $ myFileSave saveDialog
 
   -- Edit menu
   cut1 <- G.actionNew "cut1" "Cut" (Just "Just a Stub") (Just G.stockCut)
@@ -172,7 +184,7 @@ guiMain chan = do
   agr <- G.actionGroupNew "AGR"
   mapM_ (G.actionGroupAddAction agr) [fma, ema, vma, hma]
   mapM_ (\act -> G.actionGroupAddActionWithAccel agr act Nothing)
-      [ new1, open1, save1, saveas1, quita
+      [ newa, opena, savea, saveasa, quita
       , cut1, copy1, paste1, delete1
       , abouta
       ]

@@ -1,10 +1,10 @@
 <ui>
   <menubar name="menubar1">
     <menu action="FMA">
-      <menuitem action="new1"/>
-      <menuitem action="open1"/>
-      <menuitem action="save1"/>
-      <menuitem action="save_as1"/>
+      <menuitem action="NEWA"/>
+      <menuitem action="OPENA"/>
+      <menuitem action="SAVEA"/>
+      <menuitem action="SAVEASA"/>
       <separator/>
       <menuitem action="QUITA"/>
     </menu>
