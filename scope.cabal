@@ -14,7 +14,7 @@ Category:            Development
 
 Cabal-Version:       >= 1.8
 Build-type:          Simple
-Data-Files:          data/main.ui
+Data-Files:          data/main.ui data/actions.ui
 
 flag splitBase
   description: Use the split-up base package.

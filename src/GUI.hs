@@ -16,6 +16,7 @@ module GUI (
 
 import Prelude hiding (catch)
 
+import Control.Applicative ((<$>))
 import Control.Concurrent
 import Control.Monad (foldM, replicateM_)
 import Control.Monad.CatchIO
@@ -127,6 +128,48 @@ guiMain chan = do
   vbox <- G.vBoxNew False 0
   G.containerAdd window vbox
 
+  ui <- G.uiManagerNew
+
+  filename <- My.getDataFileName "data/actions.ui"
+  G.uiManagerAddUiFromFile ui filename
+
+  let getAction = fmap fromJust . G.uiManagerGetAction ui
+      getWidget = fmap fromJust . G.uiManagerGetWidget ui
+
+  fma <- G.actionNew "FMA" "File" Nothing Nothing
+  ema <- G.actionNew "EMA" "Edit" Nothing Nothing
+  vma <- G.actionNew "VMA" "View" Nothing Nothing
+  hma <- G.actionNew "HMA" "Help" Nothing Nothing
+
+  new1 <- G.actionNew "new1" "New" (Just "Just a Stub") (Just G.stockNew)
+  new1 `G.on` G.actionActivated $ myNew
+  open1 <- G.actionNew "open1" "Open" (Just "Just a Stub") (Just G.stockOpen)
+  save1 <- G.actionNew "save1" "Save" (Just "Just a Stub") (Just G.stockSave)
+  saveas1 <- G.actionNew "save_as1" "SaveAs" (Just "Just a Stub") (Just G.stockSaveAs)
+  quita <- G.actionNew "QUITA" "Quit" (Just "Just a Stub") (Just G.stockQuit)
+  quita `G.on` G.actionActivated $ myQuit window chan
+
+  cut1 <- G.actionNew "cut1" "Cut" (Just "Just a Stub") (Just G.stockCut)
+  cut1 `G.on` G.actionActivated $ myCut
+  copy1 <- G.actionNew "copy1" "Copy" (Just "Just a Stub") (Just G.stockCopy)
+  copy1 `G.on` G.actionActivated $ myCopy
+  paste1 <- G.actionNew "paste1" "Paste" (Just "Just a Stub") (Just G.stockPaste)
+  paste1 `G.on` G.actionActivated $ myPaste
+  delete1 <- G.actionNew "delete1" "Delete" (Just "Just a Stub") (Just G.stockDelete)
+  delete1 `G.on` G.actionActivated $ myDelete
+
+  agr <- G.actionGroupNew "AGR"
+  mapM_ (G.actionGroupAddAction agr) [fma, ema, vma, hma]
+  mapM_ (\act -> G.actionGroupAddActionWithAccel agr act Nothing)
+      [ new1, open1, save1, saveas1, quita
+      , cut1, copy1, paste1, delete1
+      ]
+
+  G.uiManagerInsertActionGroup ui agr 0
+
+  menubar <- getWidget "/ui/menubar1"
+  G.boxPackStart vbox menubar G.PackNatural 0
+
   canvas <- G.drawingAreaNew
   G.boxPackStart vbox canvas G.PackGrow 0
 
@@ -138,7 +181,7 @@ guiMain chan = do
   statusbar <- G.statusbarNew
   G.boxPackStart vbox statusbar G.PackNatural 0
 
-  G.onDestroy window (myWriteChan chan "quit")
+  G.onDestroy window ((myWriteChan chan "quit") >> G.mainQuit)
 #endif
 
   G.widgetShowAll window

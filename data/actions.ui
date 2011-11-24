@@ -1,0 +1,22 @@
+<ui>
+  <menubar name="menubar1">
+    <menu action="FMA">
+      <menuitem action="new1"/>
+      <menuitem action="open1"/>
+      <menuitem action="save1"/>
+      <menuitem action="save_as1"/>
+      <separator/>
+      <menuitem action="QUITA"/>
+    </menu>
+    <menu action="EMA">
+      <menuitem action="cut1"/>
+      <menuitem action="copy1"/>
+      <menuitem action="paste1"/>
+      <menuitem action="delete1"/>
+    </menu>
+    <menu action="VMA"/>
+    <menu action="HMA">
+      <menuitem action="about1"/>
+    </menu>
+  </menubar>
+</ui>
