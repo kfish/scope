@@ -44,19 +44,20 @@ data Scope = Scope
 
 data View = View
     { canvas :: G.DrawingArea
+    , adj    :: G.Adjustment
     , viewX  :: Double
     , viewY  :: Double
     , viewW  :: Double
     , viewH  :: Double
     }
 
-scopeNew :: G.DrawingArea -> Scope
-scopeNew c = Scope {
-      view = viewInit c
+scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
+scopeNew c adj = Scope {
+      view = viewInit c adj
     }
 
-viewInit :: G.DrawingArea -> View
-viewInit c = View c 0.0 (-1.0) 1.0 2.0
+viewInit :: G.DrawingArea -> G.Adjustment -> View
+viewInit c adj = View c adj 0.0 (-1.0) 1.0 2.0
 
 ----------------------------------------------------------------------
 
@@ -154,8 +155,12 @@ guiMain chan = do
   menubar <- getWidget "/ui/menubar1"
   G.boxPackStart vbox menubar G.PackNatural 0
 
+  adj <- G.adjustmentNew (-1.0) (-1.0) (1.0+0.1) (0.1) 1.0 (0.1)
   drawingArea <- G.drawingAreaNew
-  scopeRef <- newIORef (scopeNew drawingArea)
+
+  scopeRef <- newIORef (scopeNew drawingArea adj)
+
+  adj `G.onValueChanged` (scroll scopeRef)
 
   G.boxPackStart vbox drawingArea G.PackGrow 0
 
@@ -180,9 +185,6 @@ guiMain chan = do
     liftIO $ updateCanvas scopeRef
     return ()
 
-  adj <- G.adjustmentNew 50 0 100 5 20 15
-  adj `G.onValueChanged` (scroll adj)
-
   scrollbar <- G.hScrollbarNew adj
   G.boxPackStart vbox scrollbar G.PackNatural 0
 
@@ -193,25 +195,6 @@ guiMain chan = do
 
   G.widgetShowAll window
   G.mainGUI
-
-motion :: G.EventM G.EMotion ()
-motion = do
-    (x, y) <- G.eventCoordinates
-    liftIO $ putStrLn $ printf "motion (%f, %f)" x y
-
-wheel :: IORef Scope -> G.EventM G.EScroll ()
-wheel ref = do
-    scope <- liftIO $ readIORef ref
-    dir <- G.eventScrollDirection
-    let mult = case dir of
-                   G.ScrollUp   -> 1.1
-                   G.ScrollDown -> 0.9
-                   _            -> 1.0
-        v = view scope
-        view' = v { viewW = viewW v * mult }
-        scope' = scope { view = view'}
-    liftIO $ writeIORef ref scope'
-    liftIO $ G.widgetQueueDraw (canvas v)
 
 myQuit :: G.WidgetClass cls => cls -> Chan String -> IO ()
 myQuit window chan = do
@@ -261,10 +244,36 @@ updateCanvas ref = do
 
 ----------------------------------------------------------------
 
-scroll :: G.Adjustment -> IO ()
-scroll adj = do
-    v <- G.adjustmentGetValue adj
-    putStrLn $ printf "%f" v
+motion :: G.EventM G.EMotion ()
+motion = do
+    (x, y) <- G.eventCoordinates
+    liftIO $ putStrLn $ printf "motion (%f, %f)" x y
+
+wheel :: IORef Scope -> G.EventM G.EScroll ()
+wheel ref = do
+    scope <- liftIO $ readIORef ref
+    dir <- G.eventScrollDirection
+    let mult = case dir of
+                   G.ScrollUp   -> 1.1
+                   G.ScrollDown -> 0.9
+                   _            -> 1.0
+        v = view scope
+        view' = v { viewW = viewW v * mult }
+        scope' = scope { view = view'}
+    liftIO $ writeIORef ref scope'
+    liftIO $ G.widgetQueueDraw (canvas v)
+
+scroll :: IORef Scope -> IO ()
+scroll ref = do
+    scope <- readIORef ref
+    val <- G.adjustmentGetValue (adj . view $ scope)
+    putStrLn $ printf "%f" val
+
+    let v = view scope
+        view' = v { viewX = (-1.0) - val }
+        scope' = scope { view = view'}
+    liftIO $ writeIORef ref scope'
+    liftIO $ G.widgetQueueDraw (canvas v)
 
 ----------------------------------------------------------------
 
