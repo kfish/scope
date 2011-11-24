@@ -155,7 +155,7 @@ guiMain chan = do
   menubar <- getWidget "/ui/menubar1"
   G.boxPackStart vbox menubar G.PackNatural 0
 
-  adj <- G.adjustmentNew (-1.0) (-1.0) (1.0+0.1) (0.1) 1.0 (0.1)
+  adj <- G.adjustmentNew (0.0) (0.0) (1.0) (0.1) 1.0 1.0
   drawingArea <- G.drawingAreaNew
 
   scopeRef <- newIORef (scopeNew drawingArea adj)
@@ -251,17 +251,24 @@ motion = do
 
 wheel :: IORef Scope -> G.EventM G.EScroll ()
 wheel ref = do
-    scope <- liftIO $ readIORef ref
     dir <- G.eventScrollDirection
-    let mult = case dir of
-                   G.ScrollUp   -> 1.1
-                   G.ScrollDown -> 0.9
-                   _            -> 1.0
-        v = view scope
-        view' = v { viewW = viewW v * mult }
-        scope' = scope { view = view'}
-    liftIO $ writeIORef ref scope'
-    liftIO $ G.widgetQueueDraw (canvas v)
+    liftIO $ do
+        scope <- readIORef ref
+        let mult = case dir of
+                       G.ScrollUp   -> 1.1
+                       G.ScrollDown -> 0.9
+                       _            -> 1.0
+            v = view scope
+            oldW = viewW v
+            newW = max 1.0 (oldW * mult)
+            -- oldX = viewX v
+            -- newX = max (-1.0) (viewX v + (oldW - newW)/2)
+            -- view' = v { viewX = newX, viewW = newW}
+            view' = v { viewW = newW}
+            scope' = scope { view = view'}
+        G.adjustmentSetPageSize (adj v) (1.0 / viewW view')
+        writeIORef ref scope'
+        G.widgetQueueDraw (canvas v)
 
 scroll :: IORef Scope -> IO ()
 scroll ref = do
@@ -270,7 +277,7 @@ scroll ref = do
     putStrLn $ printf "%f" val
 
     let v = view scope
-        view' = v { viewX = (-1.0) - val }
+        view' = v { viewX = val }
         scope' = scope { view = view'}
     liftIO $ writeIORef ref scope'
     liftIO $ G.widgetQueueDraw (canvas v)
@@ -320,10 +327,10 @@ example width height scope = do
 prologue :: Int -> Int -> View -> C.Render ()
 prologue wWidth wHeight View{..} = do
   -- Define viewport coords as (-1.0, -1.0) - (1.0, 1.0)
-  let width   = 2.0
+  let width   = 1.0
       height  = 2.0
       xmax    = 1.0
-      xmin    = -1.0
+      xmin    = 0.0
       ymax    = 1.0
       ymin    = -1.0
       scaleX  = realToFrac wWidth  / width
@@ -337,8 +344,8 @@ prologue wWidth wHeight View{..} = do
 
   -- Set up user coordinates
   C.scale scaleX scaleY
-  -- center origin
-  C.translate (width / 2) (height / 2)
+  -- center origin vertically
+  C.translate 0 (height / 2)
   -- positive y-axis upwards
   let flipY = M.Matrix 1 0 0 (-1) 0 0
   C.transform flipY
@@ -391,27 +398,32 @@ plot1 scope = keepState $ do
         v = view scope
 
         -- dYRange = 1000.0
-        dYRange = 200000000.0
+        -- dYRange = 200000000.0
+        dYRange = 1000000000.0
+
+        canvasFold f = I.foldM f (negate (viewX v))
 
         -- Texture
-        textureSize = (2^8)+1
+        textureSize = (2^5)+1
         texW = (viewW v) / textureSize
         texH = (viewH v) / textureSize
 
         t :: I.Iteratee [(TimeStamp, TextureSlice)] C.Render Double
-        t = I.foldM renderTex (viewX v)
+        t = canvasFold renderTex
 
         renderTex :: Double -> (TimeStamp, TextureSlice) -> C.Render Double
-        renderTex x (_ts, (TextureSlice tex)) = mapM_ (uncurry (texVal x)) (zip (iterate (+texH) (viewX v)) tex) >> return (x+texW)
+        renderTex x (_ts, (TextureSlice tex)) = do
+            mapM_ (uncurry (texVal x)) (zip (iterate (+texH) (viewY v)) tex)
+            return (x+texW)
 
         texVal :: Double -> Double -> Float -> C.Render ()
         texVal x y v = do
             -- liftIO . putStrLn $ printf "(%f, %f) : %f" x y v
-            C.setSourceRGB s s (s-0.1)
+            C.setSourceRGB s (s*0.9) (s-0.03)
             C.rectangle x y (texW+0.01) (texH+0.01)
             C.fill
             where
-                s = (realToFrac v / 4) + 0.5
+                s = (realToFrac v / 4) + 0.75
 
         -- raw data
         dSize = 5000
@@ -420,8 +432,7 @@ plot1 scope = keepState $ do
         i :: Double -> Double -> Double -> Double -> I.Iteratee [(TimeStamp, Double)] C.Render ()
         i yR r g b = do
             lift $ C.setSourceRGB r g b
-            lift $ m (viewX v) 0
-            I.foldM (renderRaw yR) (viewX v)
+            canvasFold (renderRaw yR)
             lift $ C.stroke
 
         renderRaw :: Double -> Double -> (TimeStamp, Double) -> C.Render Double
@@ -437,8 +448,7 @@ plot1 scope = keepState $ do
         j :: I.Iteratee [Summary Double] C.Render ()
         j = do
             lift $ C.setSourceRGB 1.0 0 0
-            lift $ m (viewX v) 0
-            I.foldM renderSummary (viewX v)
+            canvasFold renderSummary
             lift $ C.stroke
 
         renderSummary :: Double -> Summary Double -> C.Render Double
