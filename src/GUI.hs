@@ -43,17 +43,20 @@ data Scope = Scope
     }
 
 data View = View
-    { viewX  :: Double
+    { canvas :: G.DrawingArea
+    , viewX  :: Double
     , viewY  :: Double
     , viewW  :: Double
     , viewH  :: Double
     }
 
-scopeNew :: Scope
-scopeNew = Scope {
-      -- Define viewport coords as (-1.0, -1.0) - (1.0, 1.0)
-      view = View (-1.0) (-1.0) 2.0 2.0
+scopeNew :: G.DrawingArea -> Scope
+scopeNew c = Scope {
+      view = viewInit c
     }
+
+viewInit :: G.DrawingArea -> View
+viewInit c = View c 0.0 (-1.0) 1.0 2.0
 
 ----------------------------------------------------------------------
 
@@ -76,8 +79,6 @@ _writePng =
 guiMain :: Chan String -> IO ()
 guiMain chan = do
   _ <- G.initGUI
-
-  scopeRef <- newIORef scopeNew
 
   window <- G.windowNew
   G.widgetSetSizeRequest window windowWidth windowHeight
@@ -153,18 +154,20 @@ guiMain chan = do
   menubar <- getWidget "/ui/menubar1"
   G.boxPackStart vbox menubar G.PackNatural 0
 
-  canvas <- G.drawingAreaNew
-  G.boxPackStart vbox canvas G.PackGrow 0
+  drawingArea <- G.drawingAreaNew
+  scopeRef <- newIORef (scopeNew drawingArea)
 
-  canvas `G.on` G.buttonPressEvent $ G.tryEvent $ do
+  G.boxPackStart vbox drawingArea G.PackGrow 0
+
+  drawingArea `G.on` G.buttonPressEvent $ G.tryEvent $ do
       liftIO $ putStrLn "Button pressed"
-  canvas `G.on` G.buttonReleaseEvent $ G.tryEvent $ do
+  drawingArea `G.on` G.buttonReleaseEvent $ G.tryEvent $ do
       liftIO $ putStrLn "Button released"
-  canvas `G.on` G.scrollEvent $ G.tryEvent $ wheel
-  canvas `G.on` G.motionNotifyEvent $ G.tryEvent $ motion
-  canvas `G.on` G.keyPressEvent $ G.tryEvent $ do
+  drawingArea `G.on` G.scrollEvent $ G.tryEvent $ wheel scopeRef
+  drawingArea `G.on` G.motionNotifyEvent $ G.tryEvent $ motion
+  drawingArea `G.on` G.keyPressEvent $ G.tryEvent $ do
       liftIO $ putStrLn "Key pressed"
-  G.widgetAddEvents canvas
+  G.widgetAddEvents drawingArea
     [ G.KeyPressMask
     , G.KeyReleaseMask
     -- , G.PointerMotionMask
@@ -172,9 +175,9 @@ guiMain chan = do
     , G.ScrollMask
     ]
 
-  -- _ <- G.onExpose canvas $ const (updateCanvas canvas)
-  cid <- canvas `G.on` G.exposeEvent $ G.tryEvent $ do
-    liftIO $ updateCanvas canvas scopeRef
+  -- _ <- G.onExpose drawingArea $ const (updateCanvas drawingArea)
+  cid <- drawingArea `G.on` G.exposeEvent $ G.tryEvent $ do
+    liftIO $ updateCanvas scopeRef
     return ()
 
   adj <- G.adjustmentNew 50 0 100 5 20 15
@@ -196,13 +199,19 @@ motion = do
     (x, y) <- G.eventCoordinates
     liftIO $ putStrLn $ printf "motion (%f, %f)" x y
 
-wheel :: G.EventM G.EScroll ()
-wheel = do
+wheel :: IORef Scope -> G.EventM G.EScroll ()
+wheel ref = do
+    scope <- liftIO $ readIORef ref
     dir <- G.eventScrollDirection
-    case dir of
-        G.ScrollUp   -> liftIO $ putStrLn "Scrolling UP"
-        G.ScrollDown -> liftIO $ putStrLn "Scrolling Down"
-        _            -> liftIO $ putStrLn "Scrolling OMFGWHERE?"
+    let mult = case dir of
+                   G.ScrollUp   -> 1.1
+                   G.ScrollDown -> 0.9
+                   _            -> 1.0
+        v = view scope
+        view' = v { viewW = viewW v * mult }
+        scope' = scope { view = view'}
+    liftIO $ writeIORef ref scope'
+    liftIO $ G.widgetQueueDraw (canvas v)
 
 myQuit :: G.WidgetClass cls => cls -> Chan String -> IO ()
 myQuit window chan = do
@@ -241,12 +250,14 @@ myPaste = putStrLn "Paste"
 myDelete :: IO ()
 myDelete = putStrLn "Delete"
 
-updateCanvas :: G.DrawingArea -> IORef Scope -> IO Bool
-updateCanvas canvas ref = do
-  win <- G.widgetGetDrawWindow canvas
-  (width, height) <- G.widgetGetSize canvas
-  G.renderWithDrawable win $ example width height ref
-  return True
+updateCanvas :: IORef Scope -> IO Bool
+updateCanvas ref = do
+    scope <- readIORef ref
+    let c = canvas . view $ scope
+    win <- G.widgetGetDrawWindow c
+    (width, height) <- G.widgetGetSize c
+    G.renderWithDrawable win $ example width height scope
+    return True
 
 ----------------------------------------------------------------
 
@@ -291,21 +302,21 @@ fillStroke = do
 
 -- Example
 
-example :: Int -> Int -> IORef Scope -> C.Render ()
-example width height ref = do
-    scope <- liftIO $ readIORef ref
+example :: Int -> Int -> Scope -> C.Render ()
+example width height scope = do
     prologue width height (view scope)
     plot1 scope
 
 -- Set up stuff
 prologue :: Int -> Int -> View -> C.Render ()
 prologue wWidth wHeight View{..} = do
-  let width   = viewW
-      height  = viewH
-      xmax    = viewX + viewW
-      xmin    = viewX
-      ymax    = viewY + viewH
-      ymin    = viewY
+  -- Define viewport coords as (-1.0, -1.0) - (1.0, 1.0)
+  let width   = 2.0
+      height  = 2.0
+      xmax    = 1.0
+      xmin    = -1.0
+      ymax    = 1.0
+      ymin    = -1.0
       scaleX  = realToFrac wWidth  / width
       scaleY  = realToFrac wHeight / height
 
