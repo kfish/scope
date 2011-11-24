@@ -136,11 +136,13 @@ guiMain chan = do
   let getAction = fmap fromJust . G.uiManagerGetAction ui
       getWidget = fmap fromJust . G.uiManagerGetWidget ui
 
+  -- Menubar
   fma <- G.actionNew "FMA" "File" Nothing Nothing
   ema <- G.actionNew "EMA" "Edit" Nothing Nothing
   vma <- G.actionNew "VMA" "View" Nothing Nothing
   hma <- G.actionNew "HMA" "Help" Nothing Nothing
 
+  -- File menu
   new1 <- G.actionNew "new1" "New" (Just "Just a Stub") (Just G.stockNew)
   new1 `G.on` G.actionActivated $ myNew
   open1 <- G.actionNew "open1" "Open" (Just "Just a Stub") (Just G.stockOpen)
@@ -149,6 +151,7 @@ guiMain chan = do
   quita <- G.actionNew "QUITA" "Quit" (Just "Just a Stub") (Just G.stockQuit)
   quita `G.on` G.actionActivated $ myQuit window chan
 
+  -- Edit menu
   cut1 <- G.actionNew "cut1" "Cut" (Just "Just a Stub") (Just G.stockCut)
   cut1 `G.on` G.actionActivated $ myCut
   copy1 <- G.actionNew "copy1" "Copy" (Just "Just a Stub") (Just G.stockCopy)
@@ -158,11 +161,14 @@ guiMain chan = do
   delete1 <- G.actionNew "delete1" "Delete" (Just "Just a Stub") (Just G.stockDelete)
   delete1 `G.on` G.actionActivated $ myDelete
 
+  -- Help menu
+  -- About dialog
   aboutdialog <- G.aboutDialogNew
   abouta <- G.actionNew "ABOUTA" "About" (Just "Just a Stub") Nothing
   abouta `G.on` G.actionActivated $ G.widgetShow aboutdialog
   aboutdialog `G.on` G.response $ const $ G.widgetHide aboutdialog
 
+  -- Action group
   agr <- G.actionGroupNew "AGR"
   mapM_ (G.actionGroupAddAction agr) [fma, ema, vma, hma]
   mapM_ (\act -> G.actionGroupAddActionWithAccel agr act Nothing)
