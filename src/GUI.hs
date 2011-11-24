@@ -373,7 +373,7 @@ plot1 scope = keepState $ do
     I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [2] . I.joinI . enumDouble . I.joinI . I.take dSize $ i 30000 0.7 0.3 0.2)) dataPath
 
     -- Render summary data
-    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] $ enumSummaryDouble 1 j)) dataPath
+    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] $ enumSummaryDouble 2 . I.joinI . I.take sSize $ j)) dataPath
 
     where
         m = C.moveTo
@@ -422,14 +422,23 @@ plot1 scope = keepState $ do
             return (x+dW)
 
         -- Summary
+        sSize = 20
+        sW = (viewW v) / fromIntegral sSize
+
         j :: I.Iteratee [Summary Double] C.Render ()
         j = do
             lift $ C.setSourceRGB 1.0 0 0
+            lift $ m (viewX v) 0
             I.foldM renderSummary (viewX v)
             lift $ C.stroke
 
         renderSummary :: Double -> Summary Double -> C.Render Double
-        renderSummary x s = l x (fx s * 4.0 / dYRange) >> return (x+0.1)
+        renderSummary x s = do
+            -- liftIO . putStrLn $ printf "(%f, %f)" x y
+            l x y
+            return (x+sW)
+            where
+                y = fx s * 4.0 / dYRange
 
         fx :: Summary Double -> Double
         fx = numMax . summaryData
