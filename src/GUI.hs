@@ -135,12 +135,13 @@ guiMain chan = do
   canvas `G.on` G.buttonReleaseEvent $ G.tryEvent $ do
       liftIO $ putStrLn "Button released"
   canvas `G.on` G.scrollEvent $ G.tryEvent $ wheel
+  canvas `G.on` G.motionNotifyEvent $ G.tryEvent $ motion
   canvas `G.on` G.keyPressEvent $ G.tryEvent $ do
       liftIO $ putStrLn "Key pressed"
   G.widgetAddEvents canvas
     [ G.KeyPressMask
     , G.KeyReleaseMask
-    , G.PointerMotionMask
+    -- , G.PointerMotionMask
     , G.Button1MotionMask
     , G.ScrollMask
     ]
@@ -163,6 +164,11 @@ guiMain chan = do
 
   G.widgetShowAll window
   G.mainGUI
+
+motion :: G.EventM G.EMotion ()
+motion = do
+    (x, y) <- G.eventCoordinates
+    liftIO $ putStrLn $ printf "motion (%f, %f)" x y
 
 wheel :: G.EventM G.EScroll ()
 wheel = do
