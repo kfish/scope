@@ -22,6 +22,7 @@ import Control.Monad (foldM, replicateM_)
 import Control.Monad.CatchIO
 import Control.Monad.Reader
 import Data.Dynamic
+import Data.IORef
 import Data.Maybe
 import qualified Data.Iteratee as I
 import Data.ZoomCache.Numeric
@@ -35,10 +36,35 @@ import Text.Printf
 
 import Paths_scope as My
 
+----------------------------------------------------------------------
+
+data Scope = Scope
+    { view :: View
+    }
+
+data View = View
+    { viewX  :: Double
+    , viewY  :: Double
+    , viewW  :: Double
+    , viewH  :: Double
+    }
+
+-- Want to define viewport coords as (-1.0, -1.0) - (1.0, 1.0)
+-- Atm, viewport coords are (-5.0, -5.0) - (5.0, 5.0)
+
+scopeNew :: Scope
+scopeNew = Scope {
+      -- view = View (-1.0) (-1.0) 2.0 2.0
+      view = View (-5.0) (-5.0) 10.0 10.0
+    }
+
+----------------------------------------------------------------------
+
 windowWidth, windowHeight :: Int
 windowWidth   = 500
 windowHeight  = 500
 
+{-
 -- Write image to file
 _writePng :: IO ()
 _writePng =
@@ -47,11 +73,14 @@ _writePng =
       C.surfaceWriteToPNG result "Draw.png"
   where width  = windowWidth
         height = windowHeight
+-}
 
 -- Display image in window
 guiMain :: Chan String -> IO ()
 guiMain chan = do
   _ <- G.initGUI
+
+  scopeRef <- newIORef scopeNew
 
   window <- G.windowNew
   G.widgetSetSizeRequest window windowWidth windowHeight
@@ -148,7 +177,7 @@ guiMain chan = do
 
   -- _ <- G.onExpose canvas $ const (updateCanvas canvas)
   cid <- canvas `G.on` G.exposeEvent $ G.tryEvent $ do
-    liftIO $ updateCanvas canvas
+    liftIO $ updateCanvas canvas scopeRef
     return ()
 
   adj <- G.adjustmentNew 50 0 100 5 20 15
@@ -215,11 +244,11 @@ myPaste = putStrLn "Paste"
 myDelete :: IO ()
 myDelete = putStrLn "Delete"
 
-updateCanvas :: G.DrawingArea -> IO Bool
-updateCanvas canvas = do
+updateCanvas :: G.DrawingArea -> IORef Scope -> IO Bool
+updateCanvas canvas ref = do
   win <- G.widgetGetDrawWindow canvas
   (width, height) <- G.widgetGetSize canvas
-  G.renderWithDrawable win $ example width height
+  G.renderWithDrawable win $ example width height ref
   return True
 
 ----------------------------------------------------------------
@@ -265,20 +294,21 @@ fillStroke = do
 
 -- Example
 
-example :: Int -> Int -> C.Render ()
-example width height = do
-  prologue width height
-  plot1
+example :: Int -> Int -> IORef Scope -> C.Render ()
+example width height ref = do
+    scope <- liftIO $ readIORef ref
+    prologue width height (view scope)
+    plot1 scope
 
 -- Set up stuff
-prologue :: Int -> Int -> C.Render ()
-prologue wWidth wHeight = do
-  let width   = 10
-      height  = 10
-      xmax    = width / 2
-      xmin    = - xmax
-      ymax    = height / 2
-      ymin    = - ymax
+prologue :: Int -> Int -> View -> C.Render ()
+prologue wWidth wHeight View{..} = do
+  let width   = viewW
+      height  = viewH
+      xmax    = viewX + viewW
+      xmin    = viewX
+      ymax    = viewY + viewH
+      ymin    = viewY
       scaleX  = realToFrac wWidth  / width
       scaleY  = realToFrac wHeight / height
 
@@ -321,10 +351,10 @@ instance MonadCatchIO C.Render where
 
 mapRender f = Render . f . runRender
 
-plot1 :: C.Render ()
-plot1 = keepState $ do
-    m (-5) 0
-    let dataPath = "../zoom-cache/foo.zoom"
+plot1 :: Scope -> C.Render ()
+plot1 scope = keepState $ do
+    -- let dataPath = "../zoom-cache/foo.zoom"
+    let dataPath = "/home/conrad/src/tsuru/trader/272-log/spot+pl.zoom"
         texturePath = "../texture-synthesis/texture.zoom"
 
     -- Render texture
@@ -341,19 +371,21 @@ plot1 = keepState $ do
         m = C.moveTo
         l = C.lineTo
 
+        v = view scope
+
         -- dYRange = 1000.0
-        dYRange = 100000000.0
+        dYRange = 200000000.0
 
         -- Texture
         textureSize = (2^8)+1
-        texW = 10.0 / textureSize
-        texH = 10.0 / textureSize
+        texW = (viewW v) / textureSize
+        texH = (viewH v) / textureSize
 
         t :: I.Iteratee [(TimeStamp, TextureSlice)] C.Render Double
-        t = I.foldM renderTex (-5.0)
+        t = I.foldM renderTex (viewX v)
 
         renderTex :: Double -> (TimeStamp, TextureSlice) -> C.Render Double
-        renderTex x (_ts, (TextureSlice tex)) = mapM_ (uncurry (texVal x)) (zip (iterate (+texH) (-5.0)) tex) >> return (x+texW)
+        renderTex x (_ts, (TextureSlice tex)) = mapM_ (uncurry (texVal x)) (zip (iterate (+texH) (viewX v)) tex) >> return (x+texW)
 
         texVal :: Double -> Double -> Float -> C.Render ()
         texVal x y v = do
@@ -366,25 +398,26 @@ plot1 = keepState $ do
 
         -- raw data
         dSize = 5000
-        dW = 10.0 / fromIntegral dSize
+        dW = (viewW v) / fromIntegral dSize
 
         i :: Double -> Double -> Double -> Double -> I.Iteratee [(TimeStamp, Double)] C.Render ()
         i yR r g b = do
             lift $ C.setSourceRGB r g b
-            I.foldM (renderRaw yR) (-5.0)
+            lift $ m (viewX v) 0
+            I.foldM (renderRaw yR) (viewX v)
             lift $ C.stroke
 
         renderRaw :: Double -> Double -> (TimeStamp, Double) -> C.Render Double
         renderRaw yR x (_ts, y) = do
             -- liftIO . putStrLn $ printf "(%f, %f)" x y
-            l x (y * 5.0 / yR)
+            l x (y * (viewH v)/ yR)
             return (x+dW)
 
         -- Summary
         j :: I.Iteratee [Summary Double] C.Render ()
         j = do
             lift $ C.setSourceRGB 1.0 0 0
-            I.foldM renderSummary (-5.0)
+            I.foldM renderSummary (viewX v)
             lift $ C.stroke
 
         renderSummary :: Double -> Summary Double -> C.Render Double
