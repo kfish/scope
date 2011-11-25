@@ -36,6 +36,81 @@ import Text.Printf
 
 import Paths_scope as My
 
+import Debug.Trace
+
+----------------------------------------------------------------------
+
+class Coordinate a where
+    fromDouble :: Double -> a
+    toDouble :: a -> Double
+
+    -- | Distance from to
+    distance :: a -> a -> a
+    -- | Translate x by
+    translate :: a -> a -> a
+
+newtype ScreenX = ScreenX Double deriving (Eq, Ord, Show)
+newtype ScreenY = ScreenY Double deriving (Eq, Ord, Show)
+newtype CanvasX = CanvasX Double deriving (Eq, Ord, Show)
+newtype CanvasY = CanvasY Double deriving (Eq, Ord, Show)
+newtype DataX   = DataX   Double deriving (Eq, Ord, Show)
+newtype DataY   = DataY   Double deriving (Eq, Ord, Show)
+
+instance Coordinate Double where
+    fromDouble = id
+    toDouble = id
+    distance x1 x2 = x2 - x1
+    translate t x = x + t
+
+instance Coordinate ScreenX where
+    fromDouble d = ScreenX d
+    toDouble (ScreenX d) = d
+    distance (ScreenX x1) (ScreenX x2) = ScreenX (distance x1 x2)
+    translate (ScreenX t) (ScreenX x)  = ScreenX (translate t x)
+
+instance Coordinate CanvasX where
+    fromDouble d = CanvasX d
+    toDouble (CanvasX d) = d
+    distance (CanvasX x1) (CanvasX x2) = CanvasX (distance x1 x2)
+    translate (CanvasX t) (CanvasX x)  = CanvasX (translate t x)
+
+instance Coordinate DataX where
+    fromDouble d = DataX d
+    toDouble (DataX d) = d
+    distance (DataX x1) (DataX x2) = DataX (distance x1 x2)
+    translate (DataX t) (DataX x)  = DataX (translate t x)
+
+translatePair :: Coordinate a => a -> (a, a) -> (a, a)
+translatePair t (x1, x2) = (translate t x1, translate t x2)
+
+-- | Restrict a window to within a given range
+restrictPair :: (Ord a, Coordinate a) => (a, a) -> (a, a) -> (a, a)
+restrictPair (rangeX1, rangeX2) (x1, x2)
+    | w >= rW = trace "restrictPair: w >= rW" (rangeX1, rangeX2)
+    | x1 < rangeX1 = trace "restrictPair: x1 < rangeX1" (rangeX1, translate rangeX1 w)
+    | x2 > rangeX2 = trace "restrictPair: x2 > rangeX2" (x1', rangeX2)
+    | otherwise = trace "restrictPair: otherwise" (x1, x2)
+    where
+        rW = distance rangeX1 rangeX2
+        w = distance x1 x2
+        x1' = distance w rangeX2
+
+restrictPair01 :: (Ord a, Coordinate a) => (a, a) -> (a, a)
+restrictPair01 = restrictPair (fromDouble 0.0, fromDouble 1.0)
+
+-- zoomPair :: Coordinate a => Double -> (a, a) -> (a, a)
+zoomPair :: (Show a, Coordinate a) => Double -> (a, a) -> (a, a)
+zoomPair mult (x1, x2) = trace (
+        printf "mult: %f negt: %s t: %s x1: %s x2: %s"
+            mult (show negt) (show t) (show x1) (show x2)
+    ) $ (translate negt x1, translate t x2)
+    where
+        negt = fromDouble $ negate t0
+        t = fromDouble t0
+        t0 = (newW - oldW) / 2
+        oldW = toDouble $ distance x1 x2
+        newW = min 1.0 (oldW * mult)
+
 ----------------------------------------------------------------------
 
 data Scope = Scope
@@ -45,12 +120,12 @@ data Scope = Scope
 data View = View
     { canvas :: G.DrawingArea
     , adj    :: G.Adjustment
-    , viewX1 :: Double
+    , viewX1 :: DataX
     , viewY1 :: Double
-    , viewX2 :: Double
+    , viewX2 :: DataX
     , viewY2 :: Double
-    , dragCX  :: Maybe Double -- canvas x coord of drag down
-    , dragVX1 :: Maybe Double -- viewX1 at time of drag down
+    , dragCX  :: Maybe CanvasX -- canvas x coord of drag down
+    , dragVX1 :: Maybe DataX -- viewX1 at time of drag down
     }
 
 scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
@@ -59,7 +134,7 @@ scopeNew c adj = Scope {
     }
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
-viewInit c adj = View c adj 0.0 (-1.0) 1.0 1.0 Nothing Nothing
+viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing Nothing
 
 ----------------------------------------------------------------------
 
@@ -244,36 +319,37 @@ updateCanvas ref = do
 
 ----------------------------------------------------------------
 
-viewSetEnds :: Double -> Double -> View -> IO View
+viewSetEnds :: DataX -> DataX -> View -> IO View
 viewSetEnds x1 x2 v@View{..} = do
-    putStrLn $ printf "setEnds %f %f\n" x1 x2
+    -- putStrLn $ printf "setEnds %f %f\n" x1 x2
     return view'
     where
       view' = v { viewX1 = x1, viewX2 = x2 }
-      w = min 1.0 (x2 - x1)
+      -- w = min 1.0 (x2 - x1)
 
 scopeUpdate :: IORef Scope -> Scope -> IO ()
 scopeUpdate ref scope = do
     writeIORef ref scope
     let View{..} = view scope
-    G.adjustmentSetValue adj viewX1
-    G.adjustmentSetPageSize adj (viewX2 - viewX1)
+    G.adjustmentSetValue adj (toDouble viewX1)
+    G.adjustmentSetPageSize adj $ toDouble (distance viewX1 viewX2)
     G.widgetQueueDraw canvas
 
 ----------------------------------------------------------------
 
-canvasToScreen :: G.DrawingArea -> Double -> IO Double
-canvasToScreen c cX = do
+canvasToScreen :: G.DrawingArea -> CanvasX -> IO ScreenX
+canvasToScreen c (CanvasX cX) = do
     (width, _height) <- G.widgetGetSize c
-    return (fromIntegral width * cX)
+    return $ ScreenX (fromIntegral width * cX)
 
-screenToCanvas :: G.DrawingArea -> Double -> IO Double
-screenToCanvas c sX = do
+screenToCanvas :: G.DrawingArea -> ScreenX -> IO CanvasX
+screenToCanvas c (ScreenX sX) = do
     (width, _height) <- G.widgetGetSize c
-    return (sX / fromIntegral width)
+    return $ CanvasX (sX / fromIntegral width)
 
-canvasToData :: View -> Double -> Double
-canvasToData View{..} cX = viewX1 + cX*(viewX2 - viewX1)
+canvasToData :: View -> CanvasX -> DataX
+canvasToData View{..} (CanvasX cX) = translate viewX1 $
+    DataX (cX * toDouble (distance viewX1 viewX2))
 
 buttonDown :: IORef Scope -> G.EventM G.EButton ()
 buttonDown ref = do
@@ -282,10 +358,10 @@ buttonDown ref = do
         scope <- readIORef ref
         let c = canvas . view $ scope
         putStrLn $ printf "down (%f, %f)" x y
-        cX <- screenToCanvas c x
+        cX <- screenToCanvas c (ScreenX x)
         let dX = canvasToData (view scope) cX
         -- dX <- canvasToData (view scope) <$> screenToCanvas c x
-        putStrLn $ printf "down SCREEN %f DATA %f" cX dX
+        -- putStrLn $ printf "down SCREEN %f DATA %f" cX dX
         let v = view scope
             view' = v { dragCX = Just cX
                       , dragVX1 = Just (viewX1 v)
@@ -300,8 +376,7 @@ buttonRelease ref = do
         scope <- readIORef ref
         putStrLn $ printf "release (%f, %f)" x y
         let view' = (view scope) { dragCX = Nothing
-                                 , dragVX1 = Nothing
-                                 }
+                                 , dragVX1 = Nothing }
             scope' = scope { view = view' }
         writeIORef ref scope'
 
@@ -311,14 +386,18 @@ motion ref = do
     liftIO $ do
         scope <- readIORef ref
         let v@View{..} = view scope
-        cX <- screenToCanvas canvas x
+        cX <- screenToCanvas canvas (ScreenX x)
         let dX = canvasToData v cX
         let cX0 = fromJust dragCX
             vX1 = fromJust dragVX1
         putStrLn $ printf "motion (%f, %f)" x y
-        putStrLn $ printf "motion %f -> %f" cX0 cX
-        let newX1 = max 0 $ vX1 + (cX0 - cX)
-            newX2 = newX1 + (viewX2 - viewX1)
+        -- putStrLn $ printf "motion %f -> %f" cX0 cX
+        -- let newX1 = max 0 $ vX1 + (cX0 - cX)
+        --     newX2 = newX1 + (viewX2 - viewX1)
+
+        let (newX1, newX2) = restrictPair01 .
+                translatePair (fromDouble (toDouble (distance cX cX0))) $
+                (viewX1, viewX2)
         view' <- viewSetEnds newX1 newX2 v
         let scope' = scope { view = view'}
         scopeUpdate ref scope'
@@ -332,17 +411,21 @@ wheel ref = do
                        G.ScrollUp   -> 0.9
                        G.ScrollDown -> 1.1
                        _            -> 1.0
-            v = view scope
-            oldW = viewX2 v - viewX1 v
+            v@View{..} = view scope
+            (newX1, newX2') = restrictPair01 $
+                zoomPair mult (viewX1, viewX2)
+{-
+            oldW = viewX2 - viewX1
             newW = min 1.0 (oldW * mult)
-            newX2 = if viewX2 v >= 0.99999
+            newX2 = if viewX2 >= 0.99999
                         then 1.0
-                        else viewX2 v - (oldW - newW)/2
-            (newX1, newX2') = if viewX1 v == 0.0
+                        else viewX2 - (oldW - newW)/2
+            (newX1, newX2') = if viewX1 == 0.0
                                   then (0.0, newW)
                                   else (newX2 - newW, newX2)
+-}
             
-        putStrLn $ printf "WHEEL mult %f newW %f" mult newW
+        -- putStrLn $ printf "WHEEL mult %f newW %f" mult newW
         view' <- viewSetEnds newX1 newX2' v
         let scope' = scope { view = view'}
         scopeUpdate ref scope'
@@ -353,15 +436,22 @@ scroll ref = do
     val <- G.adjustmentGetValue (adj . view $ scope)
     putStrLn $ printf "SCROLL %f" val
 
-    let v = view scope
-        oldW = viewX2 v - viewX1 v
+    let v@View{..} = view scope
+        newX1', newX2' :: DataX
+        (newX1', newX2') = restrictPair01 .
+            translatePair (distance viewX1 (DataX val)) $
+            (viewX1, viewX2)
+{-
+        oldW = distance viewX1 viewX2
         newX1 = if val < 0.0
-                    then 0.0
-                    else val
-        newX2 = newX1 + oldW
+                    then DataX 0.0
+                    else DataX val
+        newX2 = translate newX1 oldW
+        newX1', newX2' :: DataX
         (newX1', newX2') = if newX2 > 1.0
                               then (1.0 - oldW, 1.0)
                               else (newX1, newX2)
+-}
                
     view' <- viewSetEnds newX1' newX2' v
     let scope' = scope { view = view'}
@@ -486,9 +576,9 @@ plot1 scope = keepState $ do
         -- dYRange = 200000000.0
         dYRange = 1000000000.0
 
-        canvasFold f = I.foldM f (negate (viewX1 v))
+        canvasFold f = I.foldM f (negate . toDouble $ (viewX1 v))
 
-        stepWidth s = 1.0 / ((viewX2 v - viewX1 v) * fromIntegral s)
+        stepWidth s = 1.0 / (toDouble (distance (viewX1 v) (viewX2 v)) * fromIntegral s)
 
         -- Texture
         textureSize = (2^5)+1
