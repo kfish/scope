@@ -49,6 +49,8 @@ data View = View
     , viewY1 :: Double
     , viewX2 :: Double
     , viewY2 :: Double
+    , dragCX  :: Maybe Double -- canvas x coord of drag down
+    , dragVX1 :: Maybe Double -- viewX1 at time of drag down
     }
 
 scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
@@ -57,7 +59,7 @@ scopeNew c adj = Scope {
     }
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
-viewInit c adj = View c adj 0.0 (-1.0) 1.0 1.0
+viewInit c adj = View c adj 0.0 (-1.0) 1.0 1.0 Nothing Nothing
 
 ----------------------------------------------------------------------
 
@@ -164,12 +166,10 @@ guiMain chan = do
 
   G.boxPackStart vbox drawingArea G.PackGrow 0
 
-  drawingArea `G.on` G.buttonPressEvent $ G.tryEvent $ do
-      liftIO $ putStrLn "Button pressed"
-  drawingArea `G.on` G.buttonReleaseEvent $ G.tryEvent $ do
-      liftIO $ putStrLn "Button released"
+  drawingArea `G.on` G.buttonPressEvent $ G.tryEvent $ buttonDown scopeRef
+  drawingArea `G.on` G.buttonReleaseEvent $ G.tryEvent $ buttonRelease scopeRef
   drawingArea `G.on` G.scrollEvent $ G.tryEvent $ wheel scopeRef
-  drawingArea `G.on` G.motionNotifyEvent $ G.tryEvent $ motion
+  drawingArea `G.on` G.motionNotifyEvent $ G.tryEvent $ motion scopeRef
   drawingArea `G.on` G.keyPressEvent $ G.tryEvent $ do
       liftIO $ putStrLn "Key pressed"
   G.widgetAddEvents drawingArea
@@ -262,10 +262,66 @@ scopeUpdate ref scope = do
 
 ----------------------------------------------------------------
 
-motion :: G.EventM G.EMotion ()
-motion = do
+canvasToScreen :: G.DrawingArea -> Double -> IO Double
+canvasToScreen c cX = do
+    (width, _height) <- G.widgetGetSize c
+    return (fromIntegral width * cX)
+
+screenToCanvas :: G.DrawingArea -> Double -> IO Double
+screenToCanvas c sX = do
+    (width, _height) <- G.widgetGetSize c
+    return (sX / fromIntegral width)
+
+canvasToData :: View -> Double -> Double
+canvasToData View{..} cX = viewX1 + cX*(viewX2 - viewX1)
+
+buttonDown :: IORef Scope -> G.EventM G.EButton ()
+buttonDown ref = do
     (x, y) <- G.eventCoordinates
-    liftIO $ putStrLn $ printf "motion (%f, %f)" x y
+    liftIO $ do
+        scope <- readIORef ref
+        let c = canvas . view $ scope
+        putStrLn $ printf "down (%f, %f)" x y
+        cX <- screenToCanvas c x
+        let dX = canvasToData (view scope) cX
+        -- dX <- canvasToData (view scope) <$> screenToCanvas c x
+        putStrLn $ printf "down SCREEN %f DATA %f" cX dX
+        let v = view scope
+            view' = v { dragCX = Just cX
+                      , dragVX1 = Just (viewX1 v)
+                      }
+            scope' = scope { view = view' }
+        writeIORef ref scope'
+
+buttonRelease :: IORef Scope -> G.EventM G.EButton ()
+buttonRelease ref = do
+    (x, y) <- G.eventCoordinates
+    liftIO $ do
+        scope <- readIORef ref
+        putStrLn $ printf "release (%f, %f)" x y
+        let view' = (view scope) { dragCX = Nothing
+                                 , dragVX1 = Nothing
+                                 }
+            scope' = scope { view = view' }
+        writeIORef ref scope'
+
+motion :: IORef Scope -> G.EventM G.EMotion ()
+motion ref = do
+    (x, y) <- G.eventCoordinates
+    liftIO $ do
+        scope <- readIORef ref
+        let v@View{..} = view scope
+        cX <- screenToCanvas canvas x
+        let dX = canvasToData v cX
+        let cX0 = fromJust dragCX
+            vX1 = fromJust dragVX1
+        putStrLn $ printf "motion (%f, %f)" x y
+        putStrLn $ printf "motion %f -> %f" cX0 cX
+        let newX1 = max 0 $ vX1 + (cX0 - cX)
+            newX2 = newX1 + (viewX2 - viewX1)
+        view' <- viewSetEnds newX1 newX2 v
+        let scope' = scope { view = view'}
+        scopeUpdate ref scope'
 
 wheel :: IORef Scope -> G.EventM G.EScroll ()
 wheel ref = do
