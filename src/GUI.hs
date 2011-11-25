@@ -121,7 +121,6 @@ data Layer a = Layer
     , trackNo :: TrackNo
     , dataLength :: Int
     , convEnee :: Enumeratee [Stream] [a] C.Render ()
-    -- , plotIter :: Iteratee a C.Render ()
     , plotValue :: PlotLayer a
     }
 
@@ -594,19 +593,6 @@ plotLayer scope Layer{..} = keepState $ do
             plot x w d
             return (x + w)
 
-{-
-        renderSummary :: Double -> Summary Double -> C.Render Double
-        renderSummary x s = do
-            -- liftIO . putStrLn $ printf "(%f, %f)" x y
-            C.lineTo x y
-            return (x + stepWidth dataLength)
-            where
-                y = fx s * 4.0 / dataYRange
-
-        fx :: Summary Double -> Double
-        fx = numMax . summaryData
--}
-
         -- | Count of data points to drop before rendering
         skipLength :: Int -> Int
         skipLength l = floor $ fromIntegral l * toDouble viewX1
@@ -621,25 +607,6 @@ plotLayer scope Layer{..} = keepState $ do
 
         -- | Fractional number of data points visible in view
         viz l = fromIntegral l * toDouble (distance viewX1 viewX2)
-
-{-
-plotSummary :: Double -> Double -> Double -> Double -> Iteratee [Summary Double] C.Render ()
-plotSummary dYRange r g b = do
-    lift $ C.setSourceRGB r g b
-    canvasFold renderSummary sSize
-    lift $ C.stroke
-    where
-        renderSummary :: Double -> Summary Double -> C.Render Double
-        renderSummary x s = do
-            -- liftIO . putStrLn $ printf "(%f, %f)" x y
-            l x y
-            return (x+sW)
-            where
-                y = fx s * 4.0 / dYRange
-
-        fx :: Summary Double -> Double
-        fx = numMax . summaryData
--}
 
 plotSummary :: Double -> Double -> Double -> Double -> PlotLayer (Summary Double)
 plotSummary dYRange r g b x _ s = do
@@ -661,8 +628,6 @@ plot1 scope = keepState $ do
                         renderTex
                     )
                          
-    -- I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture (I.drop tSkip >> t))) texturePath
-
     -- Render raw data
     -- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] . I.joinI . enumDouble . I.joinI . I.take dSize $ i dYRange 0.3 0.7 0.2)) dataPath
     -- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [2] . I.joinI . enumDouble . I.joinI . I.take dSize $ i 30000   0.7 0.3 0.2)) dataPath
@@ -672,8 +637,6 @@ plot1 scope = keepState $ do
                         (enumSummaryDouble 1)
                         (plotSummary 1000000000.0 1.0 0 0)
                     )
-    -- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] $ enumSummaryDouble 2 . I.joinI . I.take sSize $ (I.drop sSkip >> j))) dataPath
-
     where
 {-
         m = C.moveTo
@@ -750,34 +713,6 @@ plot1 scope = keepState $ do
             l x (y * (viewY2 v - viewY1 v)/ yR)
             return (x+dW)
 -}
-
-{-
-        -- Summary
-        sScale = 20 -- no. of data points that fit in DataX length 1.0
-        sSize = visibleLength sScale
-        sSkip = skipLength sScale
-        sW = stepWidth sScale
-
-        j :: I.Iteratee [Summary Double] C.Render ()
-        j = do
-            lift $ C.setSourceRGB 1.0 0 0
-            canvasFold renderSummary sSize
-            lift $ C.stroke
-
-        renderSummary :: Double -> Summary Double -> C.Render Double
-        renderSummary x s = do
-            -- liftIO . putStrLn $ printf "(%f, %f)" x y
-            l x y
-            return (x+sW)
-            where
-                y = fx s * 4.0 / dYRange
-
-        fx :: Summary Double -> Double
-        fx = numMax . summaryData
--}
-
--- doubles :: [Double]
--- doubles = take 100 $ map ((* 5.0) . sin) [0.0, 0.1 ..]
 
 example1 :: C.Render ()
 example1 = do
