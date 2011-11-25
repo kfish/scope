@@ -557,14 +557,14 @@ plot1 scope = keepState $ do
         texturePath = "../texture-synthesis/texture.zoom"
 
     -- Render texture
-    I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture t)) texturePath
+    I.fileDriverRandom (I.joinI $ enumCacheFile textureIdentifiers (I.joinI $ enumTexture (I.drop tSkip >> t))) texturePath
 
     -- Render raw data
     I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] . I.joinI . enumDouble . I.joinI . I.take dSize $ i dYRange 0.3 0.7 0.2)) dataPath
     I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [2] . I.joinI . enumDouble . I.joinI . I.take dSize $ i 30000 0.7 0.3 0.2)) dataPath
 
     -- Render summary data
-    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] $ enumSummaryDouble 2 . I.joinI . I.take sSize $ j)) dataPath
+    I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] $ enumSummaryDouble 2 . I.joinI . I.take sSize $ (I.drop sSkip >> j))) dataPath
 
     where
         m = C.moveTo
@@ -576,17 +576,37 @@ plot1 scope = keepState $ do
         -- dYRange = 200000000.0
         dYRange = 1000000000.0
 
-        canvasFold f = I.foldM f (negate . toDouble $ (viewX1 v))
+        -- canvasFold f = I.foldM f (negate . toDouble $ (viewX1 v))
+        canvasFold f l = I.foldM f (canvasX0 l)
 
-        stepWidth s = 1.0 / (toDouble (distance (viewX1 v) (viewX2 v)) * fromIntegral s)
+        -- | Count of data points to drop before rendering
+        skipLength :: Int -> Int
+        skipLength l = floor $ fromIntegral l * toDouble (viewX1 v)
+
+        -- | Count of data points visible in view
+        visibleLength :: Int -> Int
+        visibleLength l = ceiling (viz l)
+
+        -- | Canvas X coordinate of first data point
+        canvasX0 :: Int -> Double
+        canvasX0 _ = 0.0
+
+        -- | Canvas x length per data point
+        -- stepWidth s = 1.0 / (toDouble (distance (viewX1 v) (viewX2 v)) * fromIntegral s)
+        stepWidth l = 1.0 / viz l
+
+        -- | Fractional number of data points visible in view
+        viz l = fromIntegral l * toDouble (distance (viewX1 v) (viewX2 v))
+
 
         -- Texture
         textureSize = (2^5)+1
+        tSkip = skipLength textureSize
         texW = stepWidth textureSize
         texH = (viewY2 v - viewY1 v) / fromIntegral textureSize
 
         t :: I.Iteratee [(TimeStamp, TextureSlice)] C.Render Double
-        t = canvasFold renderTex
+        t = canvasFold renderTex textureSize
 
         renderTex :: Double -> (TimeStamp, TextureSlice) -> C.Render Double
         renderTex x (_ts, (TextureSlice tex)) = do
@@ -603,13 +623,14 @@ plot1 scope = keepState $ do
                 s = (realToFrac v / 4) + 0.75
 
         -- raw data
+        dLength = 5000
         dSize = 5000
         dW = stepWidth dSize
 
         i :: Double -> Double -> Double -> Double -> I.Iteratee [(TimeStamp, Double)] C.Render ()
         i yR r g b = do
             lift $ C.setSourceRGB r g b
-            canvasFold (renderRaw yR)
+            canvasFold (renderRaw yR) dLength
             lift $ C.stroke
 
         renderRaw :: Double -> Double -> (TimeStamp, Double) -> C.Render Double
@@ -619,13 +640,15 @@ plot1 scope = keepState $ do
             return (x+dW)
 
         -- Summary
-        sSize = 20
-        sW = stepWidth sSize
+        sScale = 20 -- no. of data points that fit in DataX length 1.0
+        sSize = visibleLength sScale
+        sSkip = skipLength sScale
+        sW = stepWidth sScale
 
         j :: I.Iteratee [Summary Double] C.Render ()
         j = do
             lift $ C.setSourceRGB 1.0 0 0
-            canvasFold renderSummary
+            canvasFold renderSummary sSize
             lift $ C.stroke
 
         renderSummary :: Double -> Summary Double -> C.Render Double
