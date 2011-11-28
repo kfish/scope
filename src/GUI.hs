@@ -124,6 +124,8 @@ data Layer a = Layer
     , plotValue :: PlotLayer a
     }
 
+data ScopeLayer = forall a . ScopeLayer (Layer a)
+
 ----------------------------------------------------------------------
 
 data Scope = Scope
@@ -486,7 +488,7 @@ keepState render = do
 example :: Int -> Int -> Scope -> C.Render ()
 example width height scope = do
     prologue width height (view scope)
-    plot1 scope
+    plotLayers scope
 
 -- Set up stuff
 prologue :: Int -> Int -> View -> C.Render ()
@@ -540,8 +542,8 @@ instance MonadCatchIO C.Render where
 
 mapRender f = Render . f . runRender
 
-plotLayer :: Scope -> Layer a -> C.Render ()
-plotLayer scope Layer{..} = keepState $ do
+plotLayer :: Scope -> ScopeLayer -> C.Render ()
+plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
     C.setSourceRGB 0.0 0 1.0
     I.fileDriverRandom (I.joinI $
         enumCacheFile identifiers (I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ foldData)
@@ -638,18 +640,12 @@ plotSummary dYRange r g b x _ s = do
 
 ----------------------------------------------------------------------
 
-plot1 :: Scope -> C.Render ()
-plot1 scope = keepState $ do
-
-    -- Render texture
-    plotLayer scope textureLayer
-
-    -- Plot raw data
-    plotLayer scope rawTrack1
-    plotLayer scope rawTrack2
-
-    -- Render summary data
-    plotLayer scope summaryTrack1
-    plotLayer scope summaryTrack2
+plotLayers :: Scope -> C.Render ()
+plotLayers scope = keepState $ mapM_ (plotLayer scope) scopeLayers
+    where
+        scopeLayers = [ ScopeLayer textureLayer
+                      , ScopeLayer rawTrack1, ScopeLayer rawTrack2
+                      , ScopeLayer summaryTrack1, ScopeLayer summaryTrack2
+                      ]
 
 ----------------------------------------------------------------------
