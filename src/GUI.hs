@@ -627,7 +627,7 @@ textureLayer = Layer texturePath 1 textureSize enumTexture renderTex
 
         texVal :: Double -> Double -> Double -> Float -> C.Render ()
         texVal x w y v = do
-            C.setSourceRGB s (s*0.9) (s-0.03)
+            C.setSourceRGB s s (s*0.9)
             C.rectangle x y (w+0.01) (texH+0.01)
             C.fill
             where
