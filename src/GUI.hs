@@ -268,7 +268,7 @@ guiMain chan args = do
     [ G.KeyPressMask
     , G.KeyReleaseMask
     -- , G.PointerMotionMask
-    , G.Button1MotionMask
+    , G.ButtonMotionMask
     , G.ScrollMask
     ]
 
