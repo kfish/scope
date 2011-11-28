@@ -422,7 +422,7 @@ wheel ref = do
         scope <- readIORef ref
         let mult = case dir of
                        G.ScrollUp   -> 0.9
-                       G.ScrollDown -> 1.1
+                       G.ScrollDown -> 1.1111
                        _            -> 1.0
             v@View{..} = view scope
             (newX1, newX2') = restrictPair01 $
