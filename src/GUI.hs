@@ -258,8 +258,7 @@ guiMain chan args = do
   drawingArea `G.on` G.buttonReleaseEvent $ G.tryEvent $ buttonRelease scopeRef
   drawingArea `G.on` G.scrollEvent $ G.tryEvent $ wheel scopeRef
   drawingArea `G.on` G.motionNotifyEvent $ G.tryEvent $ motion scopeRef
-  drawingArea `G.on` G.keyPressEvent $ G.tryEvent $ do
-      liftIO $ putStrLn "Key pressed"
+  drawingArea `G.on` G.keyPressEvent $ G.tryEvent $ keyDown scopeRef
   G.widgetAddEvents drawingArea
     [ G.KeyPressMask
     , G.KeyReleaseMask
@@ -267,6 +266,8 @@ guiMain chan args = do
     , G.ButtonMotionMask
     , G.ScrollMask
     ]
+
+  G.widgetSetCanFocus drawingArea True
 
   -- _ <- G.onExpose drawingArea $ const (updateCanvas drawingArea)
   cid <- drawingArea `G.on` G.exposeEvent $ G.tryEvent $ do
@@ -357,8 +358,17 @@ viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX
 
 ----------------------------------------------------------------
 
-scopeZoomOn :: CanvasX -> Double -> IORef Scope -> IO ()
-scopeZoomOn focus mult ref = do
+scopeZoomIn :: Double -> IORef Scope -> IO ()
+scopeZoomIn = scopeZoomInOn (CanvasX 0.5)
+
+scopeZoomOut :: Double -> IORef Scope -> IO ()
+scopeZoomOut = scopeZoomOutOn (CanvasX 0.5)
+
+scopeZoomInOn :: CanvasX -> Double -> IORef Scope -> IO ()
+scopeZoomInOn focus mult = scopeZoomOutOn focus (1.0/mult)
+
+scopeZoomOutOn :: CanvasX -> Double -> IORef Scope -> IO ()
+scopeZoomOutOn focus mult ref = do
     scope <- readIORef ref
     let v@View{..} = view scope
         (newX1, newX2') = restrictPair01 $
@@ -438,13 +448,12 @@ wheel ref = do
     dir <- G.eventScrollDirection
     liftIO $ do
         scope <- readIORef ref
-        let mult = case dir of
-                       G.ScrollUp   -> 0.9
-                       G.ScrollDown -> 1.1111
-                       _            -> 1.0
-            v@View{..} = view scope
+        let v@View{..} = view scope
         cX <- screenToCanvas canvas (ScreenX x)
-        scopeZoomOn cX mult ref
+        case dir of
+            G.ScrollUp   -> scopeZoomInOn  cX 1.2 ref
+            G.ScrollDown -> scopeZoomOutOn cX 1.2 ref
+            _            -> return ()
 
 scroll :: IORef Scope -> IO ()
 scroll ref = do
@@ -458,6 +467,29 @@ scroll ref = do
             (viewX1, viewX2)
     let scope' = scope { view = viewSetEnds newX1' newX2' v }
     scopeUpdate ref scope'
+
+----------------------------------------------------------------
+
+-- Some keys we are interested in, from:
+-- http://cgit.freedesktop.org/xorg/proto/x11proto/plain/keysymdef.h
+#define XK_Home                          0xff50
+#define XK_Left                          0xff51  /* Move left, left arrow */
+#define XK_Up                            0xff52  /* Move up, up arrow */
+#define XK_Right                         0xff53  /* Move right, right arrow */
+#define XK_Down                          0xff54  /* Move down, down arrow */
+#define XK_Page_Up                       0xff55
+#define XK_Page_Down                     0xff56
+
+keyDown :: IORef Scope -> G.EventM G.EKey ()
+keyDown ref = do
+    n <- G.eventKeyName
+    v <- G.eventKeyVal
+    liftIO . putStrLn $ printf "Key %s (%d) pressed" n v
+    liftIO $ case v of
+        XK_Up   -> scopeZoomIn  2.0 ref
+        XK_Down -> scopeZoomOut 2.0 ref
+        XK_Page_Up -> putStrLn "XK_PageUp"
+        _ -> putStrLn "Random key"
 
 ----------------------------------------------------------------
 
