@@ -551,12 +551,11 @@ plotLayer scope Layer{..} = keepState $ do
 
         foldData = do
             I.drop (skipLength dataLength)
-            I.joinI . I.take (visibleLength dataLength) $ canvasFold
+            I.joinI . I.take (visibleLength dataLength) $ canvasMap
 
         identifiers = standardIdentifiers ++ textureIdentifiers
 
-        canvasFold = do
-            -- lift $ C.setSourceRGB 1.0 1.0 0
+        canvasMap = do
             I.foldM (render plotValue (stepWidth dataLength)) (canvasX0 dataLength) >> return ()
             lift $ C.stroke
 
