@@ -569,8 +569,6 @@ plotLayer scope Layer{..} = keepState $ do
     I.fileDriverRandom (I.joinI $
         enumCacheFile identifiers (I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ foldData)
         ) filename
-    -- C.moveTo 0.2 (-0.5)
-    -- C.lineTo 0.8 0.5
     where
         View{..} = view scope
 
@@ -588,6 +586,7 @@ plotLayer scope Layer{..} = keepState $ do
         -- | Canvas X coordinate of first data point
         canvasX0 :: Int -> Double
         canvasX0 _ = 0.0 
+
         render :: PlotLayer a -> Double -> Double -> a -> C.Render Double
         render plot w x d = do
             plot x w d
@@ -599,14 +598,59 @@ plotLayer scope Layer{..} = keepState $ do
 
         -- | Count of data points visible in view
         visibleLength :: Int -> Int
-        visibleLength l = trace (printf "viz l: %f" (viz l)) $ ceiling (viz l) + 1
+        visibleLength l = ceiling (viz l) + 1
 
         -- | Canvas x length per data point
-        stepWidth s = 1.0 / (toDouble (distance viewX1 viewX2) * fromIntegral s)
-        -- stepWidth l = 1.0 / viz l
+        stepWidth s = 1.0 / (toDouble (distance viewX1 viewX2) * fromIntegral s) -- stepWidth l = 1.0 / viz l
 
         -- | Fractional number of data points visible in view
         viz l = fromIntegral l * toDouble (distance viewX1 viewX2)
+
+----------------------------------------------------------------------
+-- Texture
+
+textureLayer :: Layer (TimeStamp, TextureSlice)
+textureLayer = Layer texturePath 1 textureSize enumTexture renderTex
+    where
+        texturePath = "../texture-synthesis/texture.zoom"
+        textureSize = (2^5)+1
+        texH = 2.0 {- (viewY2 v - viewY1 v)-} / fromIntegral textureSize
+
+        renderTex :: Double -> Double -> (TimeStamp, TextureSlice) -> C.Render ()
+        renderTex x w (_ts, (TextureSlice tex)) = do
+            mapM_ (uncurry (texVal x w)) (zip (iterate (+texH) (-1.0 {- (viewY1 v) -})) tex)
+
+        texVal :: Double -> Double -> Double -> Float -> C.Render ()
+        texVal x w y v = do
+            C.setSourceRGB s (s*0.9) (s-0.03)
+            C.rectangle x y (w+0.01) (texH+0.01)
+            C.fill
+            where
+	        s = (realToFrac v / 4) + 0.75
+
+----------------------------------------------------------------------
+-- Raw data
+
+dataPath = "demo.zoom"
+
+rawTrack1 :: Layer (TimeStamp, Double)
+rawTrack1 = Layer dataPath 1 5000 enumDouble (plotRaw 1000000000.0)
+
+rawTrack2 :: Layer (TimeStamp, Double)
+rawTrack2 = Layer dataPath 2 5000 enumDouble (plotRaw 300000.0)
+
+plotRaw :: Double -> Double -> Double -> (TimeStamp, Double) -> C.Render ()
+plotRaw yR x _ (_ts, y) = do
+    C.lineTo x (y * 2.0 {- (viewY2 v - viewY1 v)-} / yR)
+
+----------------------------------------------------------------------
+-- Summary data
+
+summaryTrack1 :: Layer (Summary Double)
+summaryTrack1 = Layer dataPath 1 20 (enumSummaryDouble 1) (plotSummary 1000000000.0 1.0 0 0)
+
+summaryTrack2 :: Layer (Summary Double)
+summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1) (plotSummary 300000.0 1.0 0 0)
 
 plotSummary :: Double -> Double -> Double -> Double -> PlotLayer (Summary Double)
 plotSummary dYRange r g b x _ s = do
@@ -616,103 +660,23 @@ plotSummary dYRange r g b x _ s = do
         y = fx s * 4.0 / dYRange
         fx = numMax . summaryData
 
+----------------------------------------------------------------------
+
 plot1 :: Scope -> C.Render ()
 plot1 scope = keepState $ do
-    -- let dataPath = "../zoom-cache/foo.zoom"
-    let dataPath = "/home/conrad/src/tsuru/trader/272-log/spot+pl.zoom"
-        texturePath = "../texture-synthesis/texture.zoom"
 
     -- Render texture
-    plotLayer scope (Layer texturePath 1 textureSize
-                        enumTexture
-                        renderTex
-                    )
-                         
-    -- Render raw data
-    -- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [1] . I.joinI . enumDouble . I.joinI . I.take dSize $ i dYRange 0.3 0.7 0.2)) dataPath
-    -- I.fileDriverRandom (I.joinI $ enumCacheFile standardIdentifiers (I.joinI . filterTracks [2] . I.joinI . enumDouble . I.joinI . I.take dSize $ i 30000   0.7 0.3 0.2)) dataPath
+    plotLayer scope textureLayer
+
+    -- Plot raw data
+    plotLayer scope rawTrack1
+    plotLayer scope rawTrack2
 
     -- Render summary data
-    plotLayer scope (Layer dataPath 1 20
-                        (enumSummaryDouble 1)
-                        (plotSummary 1000000000.0 1.0 0 0)
-                    )
-    where
-{-
-        m = C.moveTo
-        l = C.lineTo
+    plotLayer scope summaryTrack1
+    plotLayer scope summaryTrack2
 
-
-        -- dYRange = 1000.0
-        -- dYRange = 200000000.0
-        dYRange = 1000000000.0
-
-        -- canvasFold f = I.foldM f (negate . toDouble $ (viewX1 v))
-        -- canvasFold f l = I.foldM f (canvasX0 l)
-
-        -- | Count of data points to drop before rendering
-        skipLength :: Int -> Int
-        skipLength l = floor $ fromIntegral l * toDouble (viewX1 v)
-
-        -- | Count of data points visible in view
-        visibleLength :: Int -> Int
-        visibleLength l = ceiling (viz l)
-
-        -- | Canvas X coordinate of first data point
-        canvasX0 :: Int -> Double
-        canvasX0 _ = 0.0
-
-        -- | Canvas x length per data point
-        -- stepWidth s = 1.0 / (toDouble (distance (viewX1 v) (viewX2 v)) * fromIntegral s)
-        stepWidth l = 1.0 / viz l
-
-        -- | Fractional number of data points visible in view
-        viz l = fromIntegral l * toDouble (distance (viewX1 v) (viewX2 v))
-
-
--}
-        v = view scope
-
-        -- Texture
-        textureSize = (2^5)+1
-        -- tSkip = skipLength textureSize
-        -- texW = stepWidth textureSize
-        texH = (viewY2 v - viewY1 v) / fromIntegral textureSize
-
-        -- t :: I.Iteratee [(TimeStamp, TextureSlice)] C.Render Double
-        -- t = canvasFold renderTex textureSize
-
-        renderTex :: Double -> Double -> (TimeStamp, TextureSlice) -> C.Render ()
-        renderTex x w (_ts, (TextureSlice tex)) = do
-            mapM_ (uncurry (texVal x w)) (zip (iterate (+texH) (viewY1 v)) tex)
-
-        texVal :: Double -> Double -> Double -> Float -> C.Render ()
-        texVal x w y v = do
-            -- liftIO . putStrLn $ printf "(%f, %f) : %f" x y v
-            C.setSourceRGB s (s*0.9) (s-0.03)
-            C.rectangle x y (w+0.01) (texH+0.01)
-            C.fill
-            where
-                s = (realToFrac v / 4) + 0.75
-
-{-
-        -- raw data
-        dLength = 5000
-        dSize = 5000
-        dW = stepWidth dSize
-
-        i :: Double -> Double -> Double -> Double -> I.Iteratee [(TimeStamp, Double)] C.Render ()
-        i yR r g b = do
-            lift $ C.setSourceRGB r g b
-            canvasFold (renderRaw yR) dLength
-            lift $ C.stroke
-
-        renderRaw :: Double -> Double -> (TimeStamp, Double) -> C.Render Double
-        renderRaw yR x (_ts, y) = do
-            -- liftIO . putStrLn $ printf "(%f, %f)" x y
-            l x (y * (viewY2 v - viewY1 v)/ yR)
-            return (x+dW)
--}
+----------------------------------------------------------------------
 
 example1 :: C.Render ()
 example1 = do
