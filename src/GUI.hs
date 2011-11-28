@@ -140,8 +140,7 @@ data View = View
     , viewY1 :: Double
     , viewX2 :: DataX
     , viewY2 :: Double
-    , dragCX  :: Maybe CanvasX -- canvas x coord of drag down
-    , dragVX1 :: Maybe DataX -- viewX1 at time of drag down
+    , dragDX :: Maybe DataX -- DataX of pointer at drag down
     }
 
 scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
@@ -151,7 +150,7 @@ scopeNew c adj = Scope {
     }
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
-viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing Nothing
+viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing
 
 ----------------------------------------------------------------------
 
@@ -356,6 +355,16 @@ viewSetEnds x1 x2 v@View{..} = do
       view' = v { viewX1 = x1, viewX2 = x2 }
       -- w = min 1.0 (x2 - x1)
 
+-- | Align a view so the given DataX appears at CanvasX,
+-- preserving the current view width.
+viewAlign :: CanvasX -> DataX -> View -> IO View
+viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX newX2') v
+    where
+        DataX vW = distance viewX1 viewX2 -- current width of view window
+        newX1 = max 0 $ dx - (cx * vW)
+        newX2 = newX1 + vW
+        (newX1', newX2') = restrictPair01 (newX1, newX2)
+
 scopeRefresh :: IORef Scope -> IO ()
 scopeRefresh ref = do
     scope <- readIORef ref
@@ -398,8 +407,7 @@ buttonDown ref = do
         -- dX <- canvasToData (view scope) <$> screenToCanvas c x
         -- putStrLn $ printf "down SCREEN %f DATA %f" cX dX
         let v = view scope
-            view' = v { dragCX = Just cX
-                      , dragVX1 = Just (viewX1 v)
+            view' = v { dragDX = Just dX
                       }
             scope' = scope { view = view' }
         writeIORef ref scope'
@@ -410,8 +418,7 @@ buttonRelease ref = do
     liftIO $ do
         scope <- readIORef ref
         putStrLn $ printf "release (%f, %f)" x y
-        let view' = (view scope) { dragCX = Nothing
-                                 , dragVX1 = Nothing }
+        let view' = (view scope) { dragDX = Nothing }
             scope' = scope { view = view' }
         writeIORef ref scope'
 
@@ -420,20 +427,9 @@ motion ref = do
     (x, y) <- G.eventCoordinates
     liftIO $ do
         scope <- readIORef ref
-        let v@View{..} = view scope
         cX <- screenToCanvas canvas (ScreenX x)
-        let dX = canvasToData v cX
-        let cX0 = fromJust dragCX
-            vX1 = fromJust dragVX1
-        putStrLn $ printf "motion (%f, %f)" x y
-        -- putStrLn $ printf "motion %f -> %f" cX0 cX
-        -- let newX1 = max 0 $ vX1 + (cX0 - cX)
-        --     newX2 = newX1 + (viewX2 - viewX1)
-
-        let (newX1, newX2) = restrictPair01 .
-                translatePair (fromDouble (toDouble (distance cX cX0))) $
-                (viewX1, viewX2)
-        view' <- viewSetEnds newX1 newX2 v
+        let dX0 = fromJust dragDX
+        view' <- viewAlign cX dX0 (view scope)
         let scope' = scope { view = view'}
         scopeUpdate ref scope'
 
