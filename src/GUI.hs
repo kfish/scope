@@ -391,7 +391,6 @@ buttonDown ref = do
     liftIO $ do
         scope <- readIORef ref
         let c = canvas . view $ scope
-        putStrLn $ printf "down (%f, %f)" x y
         cX <- screenToCanvas c (ScreenX x)
         let dX = canvasToData (view scope) cX
         -- dX <- canvasToData (view scope) <$> screenToCanvas c x
