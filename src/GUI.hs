@@ -87,10 +87,10 @@ translatePair t (x1, x2) = (translate t x1, translate t x2)
 -- | Restrict a window to within a given range
 restrictPair :: (Ord a, Coordinate a) => (a, a) -> (a, a) -> (a, a)
 restrictPair (rangeX1, rangeX2) (x1, x2)
-    | w >= rW = trace "restrictPair: w >= rW" (rangeX1, rangeX2)
-    | x1 < rangeX1 = trace "restrictPair: x1 < rangeX1" (rangeX1, translate rangeX1 w)
-    | x2 > rangeX2 = trace "restrictPair: x2 > rangeX2" (x1', rangeX2)
-    | otherwise = trace "restrictPair: otherwise" (x1, x2)
+    | w >= rW      = (rangeX1, rangeX2)
+    | x1 < rangeX1 = (rangeX1, translate rangeX1 w)
+    | x2 > rangeX2 = (x1', rangeX2)
+    | otherwise    = (x1, x2)
     where
         rW = distance rangeX1 rangeX2
         w = distance x1 x2
