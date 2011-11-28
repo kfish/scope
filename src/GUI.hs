@@ -590,7 +590,7 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
 
         -- | Canvas X coordinate of first data point
         canvasX0 :: Int -> Double
-        canvasX0 _ = 0.0 
+        canvasX0 l = (fromIntegral (skipLength l) - skip l) * stepWidth l
 
         render :: PlotLayer a -> Double -> Double -> a -> C.Render Double
         render plot w x d = do
@@ -599,7 +599,10 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
 
         -- | Count of data points to drop before rendering
         skipLength :: Int -> Int
-        skipLength l = floor $ fromIntegral l * toDouble viewX1
+        skipLength l = floor (skip l) -- $ fromIntegral l * toDouble viewX1
+
+        -- | DataX coordinate of start of view
+        skip l = fromIntegral l * toDouble viewX1
 
         -- | Count of data points visible in view
         visibleLength :: Int -> Int
