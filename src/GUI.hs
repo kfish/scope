@@ -347,17 +347,12 @@ addLayersFromFile ref path = do
 
 ----------------------------------------------------------------
 
-viewSetEnds :: DataX -> DataX -> View -> IO View
-viewSetEnds x1 x2 v@View{..} = do
-    -- putStrLn $ printf "setEnds %f %f\n" x1 x2
-    return view'
-    where
-      view' = v { viewX1 = x1, viewX2 = x2 }
-      -- w = min 1.0 (x2 - x1)
+viewSetEnds :: DataX -> DataX -> View -> View
+viewSetEnds x1 x2 v@View{..} = v { viewX1 = x1, viewX2 = x2 }
 
 -- | Align a view so the given DataX appears at CanvasX,
 -- preserving the current view width.
-viewAlign :: CanvasX -> DataX -> View -> IO View
+viewAlign :: CanvasX -> DataX -> View -> View
 viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX newX2') v
     where
         DataX vW = distance viewX1 viewX2 -- current width of view window
@@ -417,7 +412,7 @@ buttonRelease ref = do
     (x, y) <- G.eventCoordinates
     liftIO $ do
         scope <- readIORef ref
-        putStrLn $ printf "release (%f, %f)" x y
+        -- putStrLn $ printf "release (%f, %f)" x y
         let view' = (view scope) { dragDX = Nothing }
             scope' = scope { view = view' }
         writeIORef ref scope'
@@ -427,10 +422,10 @@ motion ref = do
     (x, y) <- G.eventCoordinates
     liftIO $ do
         scope <- readIORef ref
+        let v@View{..} = view scope
         cX <- screenToCanvas canvas (ScreenX x)
         let dX0 = fromJust dragDX
-        view' <- viewAlign cX dX0 (view scope)
-        let scope' = scope { view = view'}
+        let scope' = scope { view = viewAlign cX dX0 (view scope) }
         scopeUpdate ref scope'
 
 wheel :: IORef Scope -> G.EventM G.EScroll ()
@@ -445,47 +440,20 @@ wheel ref = do
             v@View{..} = view scope
             (newX1, newX2') = restrictPair01 $
                 zoomPair mult (viewX1, viewX2)
-{-
-            oldW = viewX2 - viewX1
-            newW = min 1.0 (oldW * mult)
-            newX2 = if viewX2 >= 0.99999
-                        then 1.0
-                        else viewX2 - (oldW - newW)/2
-            (newX1, newX2') = if viewX1 == 0.0
-                                  then (0.0, newW)
-                                  else (newX2 - newW, newX2)
--}
-            
-        -- putStrLn $ printf "WHEEL mult %f newW %f" mult newW
-        view' <- viewSetEnds newX1 newX2' v
-        let scope' = scope { view = view'}
+        let scope' = scope { view = viewSetEnds newX1 newX2' v }
         scopeUpdate ref scope'
 
 scroll :: IORef Scope -> IO ()
 scroll ref = do
     scope <- readIORef ref
     val <- G.adjustmentGetValue (adj . view $ scope)
-    putStrLn $ printf "SCROLL %f" val
 
     let v@View{..} = view scope
         newX1', newX2' :: DataX
         (newX1', newX2') = restrictPair01 .
             translatePair (distance viewX1 (DataX val)) $
             (viewX1, viewX2)
-{-
-        oldW = distance viewX1 viewX2
-        newX1 = if val < 0.0
-                    then DataX 0.0
-                    else DataX val
-        newX2 = translate newX1 oldW
-        newX1', newX2' :: DataX
-        (newX1', newX2') = if newX2 > 1.0
-                              then (1.0 - oldW, 1.0)
-                              else (newX1, newX2)
--}
-               
-    view' <- viewSetEnds newX1' newX2' v
-    let scope' = scope { view = view'}
+    let scope' = scope { view = viewSetEnds newX1' newX2' v }
     scopeUpdate ref scope'
 
 ----------------------------------------------------------------
