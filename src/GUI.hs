@@ -211,7 +211,6 @@ guiMain chan args = do
 
   openDialog <- fChooser G.FileChooserActionOpen G.stockOpen
   opena `G.on` G.actionActivated $ G.widgetShow openDialog
-  openDialog `G.on` G.response $ myFileOpen openDialog
 
   saveDialog <- fChooser G.FileChooserActionSave G.stockSave
   savea `G.on` G.actionActivated $ G.widgetShow saveDialog
@@ -255,6 +254,7 @@ guiMain chan args = do
   scopeRef <- newIORef (scopeNew drawingArea adj)
 
   mapM_ (addLayersFromFile scopeRef) args
+  openDialog `G.on` G.response $ myFileOpen scopeRef openDialog
 
   adj `G.onValueChanged` (scroll scopeRef)
 
@@ -301,19 +301,18 @@ myWriteChan chan s = do writeChan chan s
 myNew :: IO ()
 myNew = putStrLn "New"
 
-myFileOpen :: G.FileChooserDialog -> G.ResponseId -> IO ()
-myFileOpen fcdialog response = do
+myFileOpen :: IORef Scope -> G.FileChooserDialog -> G.ResponseId -> IO ()
+myFileOpen scopeRef fcdialog response = do
+  putStrLn $ printf "myFileOpen %s" (show response)
   case response of
-    G.ResponseOk -> do Just filename <- G.fileChooserGetFilename fcdialog
-                       putStrLn filename
-    G.ResponseCancel -> putStrLn "Cancelled!"
-    G.ResponseDeleteEvent -> putStrLn "FileChooserDialog Deleted!"
-    G.ResponseClose -> putStrLn "Closed!"
+    G.ResponseAccept -> do
+        Just filename <- G.fileChooserGetFilename fcdialog
+        addLayersFromFile scopeRef filename
     _ -> return ()
   G.widgetHide fcdialog
 
 myFileSave :: G.FileChooserDialog -> G.ResponseId -> IO ()
-myFileSave = myFileOpen
+myFileSave _ _ = return ()
 
 myCut :: IO ()
 myCut = putStrLn "Cut"
@@ -340,10 +339,12 @@ updateCanvas ref = do
 
 addLayersFromFile :: IORef Scope -> FilePath -> IO ()
 addLayersFromFile ref path = do
+    putStrLn $ printf "Adding layers from %s" path
     scope <- readIORef ref
     let layers' = layers scope ++ layersFromFile path
         scope' = scope { layers = layers' }
     writeIORef ref scope'
+    scopeRefresh ref
 
 ----------------------------------------------------------------
 
@@ -354,6 +355,12 @@ viewSetEnds x1 x2 v@View{..} = do
     where
       view' = v { viewX1 = x1, viewX2 = x2 }
       -- w = min 1.0 (x2 - x1)
+
+scopeRefresh :: IORef Scope -> IO ()
+scopeRefresh ref = do
+    scope <- readIORef ref
+    let View{..} = view scope
+    G.widgetQueueDraw canvas
 
 scopeUpdate :: IORef Scope -> Scope -> IO ()
 scopeUpdate ref scope = do
