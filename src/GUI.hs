@@ -109,14 +109,16 @@ zoomPair (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
 
 ----------------------------------------------------------------------
 
-type PlotLayer a = Double -> Double -> a -> C.Render ()
+type LayerMapFunc a = Double -> Double -> a -> C.Render ()
+
+data LayerPlot a = LayerMap (LayerMapFunc a)
 
 data Layer a = Layer
     { filename :: FilePath
     , trackNo :: TrackNo
     , dataLength :: Int
     , convEnee :: Enumeratee [Stream] [a] C.Render ()
-    , plotValue :: PlotLayer a
+    , plotter :: LayerPlot a
     }
 
 data ScopeLayer = forall a . ScopeLayer (Layer a)
@@ -609,15 +611,15 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
         identifiers = standardIdentifiers ++ textureIdentifiers
 
         canvasMap = do
-            I.foldM (render plotValue stepWidth) canvasX0 >> return ()
+            I.foldM (render plotter stepWidth) canvasX0 >> return ()
             lift $ C.stroke
 
         -- | Canvas X coordinate of first data point
         canvasX0 = (fromIntegral skipLength - skip) * stepWidth
 
-        render :: PlotLayer a -> Double -> Double -> a -> C.Render Double
-        render plot w x d = do
-            plot x w d
+        render :: LayerPlot a -> Double -> Double -> a -> C.Render Double
+        render (LayerMap f) w x d = do
+            f x w d
             return (x + w)
 
         -- | Count of data points to drop before rendering
@@ -639,7 +641,7 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
 -- Texture
 
 textureLayer :: Layer (TimeStamp, TextureSlice)
-textureLayer = Layer texturePath 1 textureSize enumTexture renderTex
+textureLayer = Layer texturePath 1 textureSize enumTexture (LayerMap renderTex)
     where
         texturePath = "../texture-synthesis/texture.zoom"
         textureSize = (2^5)+1
@@ -667,8 +669,8 @@ plotRaw yR x _ (_ts, y) = do
 ----------------------------------------------------------------------
 -- Summary data
 
-plotSummary :: Double -> Double -> Double -> Double -> PlotLayer (Summary Double)
-plotSummary dYRange r g b x _ s = do
+plotSummary :: Double -> Double -> Double -> Double -> LayerMapFunc (Summary Double)
+plotSummary dYRange r g b x _w s = do
     C.setSourceRGB r g b
     C.lineTo x y
     where
@@ -683,13 +685,15 @@ layersFromFile dataPath = [ ScopeLayer rawTrack1, ScopeLayer rawTrack2
                           ]
     where
         rawTrack1 :: Layer (TimeStamp, Double)
-        rawTrack1 = Layer dataPath 1 5000 enumDouble (plotRaw 1000000000.0)
+        rawTrack1 = Layer dataPath 1 5000 enumDouble (LayerMap $ plotRaw 1000000000.0)
 
         rawTrack2 :: Layer (TimeStamp, Double)
-        rawTrack2 = Layer dataPath 2 5000 enumDouble (plotRaw 300000.0)
+        rawTrack2 = Layer dataPath 2 5000 enumDouble (LayerMap $ plotRaw 300000.0)
 
         summaryTrack1 :: Layer (Summary Double)
-        summaryTrack1 = Layer dataPath 1 20 (enumSummaryDouble 1) (plotSummary 1000000000.0 1.0 0 0)
+        summaryTrack1 = Layer dataPath 1 20 (enumSummaryDouble 1)
+                            (LayerMap $ plotSummary 1000000000.0 1.0 0 0)
 
         summaryTrack2 :: Layer (Summary Double)
-        summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1) (plotSummary 300000.0 1.0 0 0)
+        summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1)
+                            (LayerMap $ plotSummary 300000.0 1.0 0 0)
