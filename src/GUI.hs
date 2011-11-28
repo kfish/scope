@@ -358,6 +358,14 @@ viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX
 
 ----------------------------------------------------------------
 
+scopeAlign :: CanvasX -> DataX -> IORef Scope -> IO ()
+scopeAlign cx dx ref = do
+    scope <- readIORef ref
+    let scope' = scope { view = viewAlign cx dx (view scope) }
+    scopeUpdate ref scope'
+
+----------------------------------------------------------------
+
 scopeZoomIn :: Double -> IORef Scope -> IO ()
 scopeZoomIn = scopeZoomInOn (CanvasX 0.5)
 
@@ -479,6 +487,7 @@ scroll ref = do
 #define XK_Down                          0xff54  /* Move down, down arrow */
 #define XK_Page_Up                       0xff55
 #define XK_Page_Down                     0xff56
+#define XK_End                           0xff57  /* EOL */
 
 keyDown :: IORef Scope -> G.EventM G.EKey ()
 keyDown ref = do
@@ -486,6 +495,8 @@ keyDown ref = do
     v <- G.eventKeyVal
     liftIO . putStrLn $ printf "Key %s (%d) pressed" n v
     liftIO $ case v of
+        XK_Home -> scopeAlign (CanvasX 0.0) (DataX 0.0) ref
+        XK_End  -> scopeAlign (CanvasX 1.0) (DataX 1.0) ref
         XK_Up   -> scopeZoomIn  2.0 ref
         XK_Down -> scopeZoomOut 2.0 ref
         XK_Page_Up -> putStrLn "XK_PageUp"
