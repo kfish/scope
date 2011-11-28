@@ -167,7 +167,7 @@ windowHeight  = 500
 _writePng :: IO ()
 _writePng =
   C.withImageSurface C.FormatARGB32 width height $ \ result -> do
-      C.renderWith result $ example width height
+      C.renderWith result $ plotWindow width height
       C.surfaceWriteToPNG result "Draw.png"
   where width  = windowWidth
         height = windowHeight
@@ -334,7 +334,7 @@ updateCanvas ref = do
     let c = canvas . view $ scope
     win <- G.widgetGetDrawWindow c
     (width, height) <- G.widgetGetSize c
-    G.renderWithDrawable win $ example width height scope
+    G.renderWithDrawable win $ plotWindow width height scope
     return True
 
 ----------------------------------------------------------------
@@ -490,8 +490,8 @@ keepState render = do
 
 ----------------------------------------------------------------
 
-example :: Int -> Int -> Scope -> C.Render ()
-example width height scope = do
+plotWindow :: Int -> Int -> Scope -> C.Render ()
+plotWindow width height scope = do
     prologue width height (view scope)
     plotLayers scope
 
@@ -540,12 +540,19 @@ grid xmin xmax ymin ymax =
          C.lineTo x ymax
          C.stroke
 
+----------------------------------------------------------------
+
 instance MonadCatchIO C.Render where
   m `catch` f = mapRender (\m' -> m' `catch` \e -> runRender $ f e) m
   block       = mapRender block
   unblock     = mapRender unblock
 
 mapRender f = Render . f . runRender
+
+----------------------------------------------------------------
+
+plotLayers :: Scope -> C.Render ()
+plotLayers scope = keepState $ mapM_ (plotLayer scope) (layers scope)
 
 plotLayer :: Scope -> ScopeLayer -> C.Render ()
 plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
@@ -642,10 +649,5 @@ plotSummary dYRange r g b x _ s = do
     where
         y = fx s * 4.0 / dYRange
         fx = numMax . summaryData
-
-----------------------------------------------------------------------
-
-plotLayers :: Scope -> C.Render ()
-plotLayers scope = keepState $ mapM_ (plotLayer scope) (layers scope)
 
 ----------------------------------------------------------------------
