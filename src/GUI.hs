@@ -129,7 +129,8 @@ data ScopeLayer = forall a . ScopeLayer (Layer a)
 ----------------------------------------------------------------------
 
 data Scope = Scope
-    { view :: View
+    { view   :: View
+    , layers :: [ScopeLayer]
     }
 
 data View = View
@@ -146,6 +147,10 @@ data View = View
 scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
 scopeNew c adj = Scope {
       view = viewInit c adj
+    , layers = [ ScopeLayer textureLayer
+               , ScopeLayer rawTrack1, ScopeLayer rawTrack2
+               , ScopeLayer summaryTrack1, ScopeLayer summaryTrack2
+               ]
     }
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
@@ -641,11 +646,6 @@ plotSummary dYRange r g b x _ s = do
 ----------------------------------------------------------------------
 
 plotLayers :: Scope -> C.Render ()
-plotLayers scope = keepState $ mapM_ (plotLayer scope) scopeLayers
-    where
-        scopeLayers = [ ScopeLayer textureLayer
-                      , ScopeLayer rawTrack1, ScopeLayer rawTrack2
-                      , ScopeLayer summaryTrack1, ScopeLayer summaryTrack2
-                      ]
+plotLayers scope = keepState $ mapM_ (plotLayer scope) (layers scope)
 
 ----------------------------------------------------------------------
