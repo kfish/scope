@@ -364,6 +364,18 @@ scopeAlign cx dx ref = do
     let scope' = scope { view = viewAlign cx dx (view scope) }
     scopeUpdate ref scope'
 
+scopeMoveLeft :: IORef Scope -> IO ()
+scopeMoveLeft ref = do
+    scope <- readIORef ref
+    let View{..} = view scope
+    scopeAlign (CanvasX 0.0) viewX2 ref
+
+scopeMoveRight :: IORef Scope -> IO ()
+scopeMoveRight ref = do
+    scope <- readIORef ref
+    let View{..} = view scope
+    scopeAlign (CanvasX 1.0) viewX1 ref
+
 ----------------------------------------------------------------
 
 scopeZoomIn :: Double -> IORef Scope -> IO ()
@@ -499,6 +511,8 @@ keyDown ref = do
         XK_End  -> scopeAlign (CanvasX 1.0) (DataX 1.0) ref
         XK_Up   -> scopeZoomIn  2.0 ref
         XK_Down -> scopeZoomOut 2.0 ref
+        XK_Left  -> scopeMoveRight ref
+        XK_Right -> scopeMoveLeft ref
         XK_Page_Up -> putStrLn "XK_PageUp"
         _ -> putStrLn "Random key"
 
