@@ -99,16 +99,15 @@ restrictPair (rangeX1, rangeX2) (x1, x2)
 restrictPair01 :: (Ord a, Coordinate a) => (a, a) -> (a, a)
 restrictPair01 = restrictPair (fromDouble 0.0, fromDouble 1.0)
 
--- zoomPair :: Coordinate a => Double -> (a, a) -> (a, a)
-zoomPair :: (Show a, Coordinate a) => Double -> (a, a) -> (a, a)
-zoomPair mult (x1, x2) = trace (
-        printf "mult: %f negt: %s t: %s x1: %s x2: %s"
-            mult (show negt) (show t) (show x1) (show x2)
-    ) $ (translate negt x1, translate t x2)
+-- zoomPair :: Coordinate a => Double -> Double -> (a, a) -> (a, a)
+zoomPair :: (Show a, Coordinate a) => CanvasX -> Double -> (a, a) -> (a, a)
+zoomPair (CanvasX focus) mult (x1, x2) = trace (
+        printf "focus: %f mult: %f off1: %s off2: %s x1: %s x2: %s"
+            focus mult (show off1) (show off2) (show x1) (show x2)
+    ) $ (translate off1 x1, translate off2 x2)
     where
-        negt = fromDouble $ negate t0
-        t = fromDouble t0
-        t0 = (newW - oldW) / 2
+        off1 = fromDouble $ (oldW - newW) * focus
+        off2 = fromDouble $ (newW - oldW) * (1.0 - focus)
         oldW = toDouble $ distance x1 x2
         newW = min 1.0 (oldW * mult)
 
@@ -430,6 +429,7 @@ motion ref = do
 
 wheel :: IORef Scope -> G.EventM G.EScroll ()
 wheel ref = do
+    (x, y) <- G.eventCoordinates
     dir <- G.eventScrollDirection
     liftIO $ do
         scope <- readIORef ref
@@ -438,9 +438,10 @@ wheel ref = do
                        G.ScrollDown -> 1.1111
                        _            -> 1.0
             v@View{..} = view scope
-            (newX1, newX2') = restrictPair01 $
-                zoomPair mult (viewX1, viewX2)
-        let scope' = scope { view = viewSetEnds newX1 newX2' v }
+        cX <- screenToCanvas canvas (ScreenX x)
+        let (newX1, newX2') = restrictPair01 $
+                zoomPair cX mult (viewX1, viewX2)
+            scope' = scope { view = viewSetEnds newX1 newX2' v }
         scopeUpdate ref scope'
 
 scroll :: IORef Scope -> IO ()
