@@ -355,6 +355,17 @@ viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX
         newX2 = newX1 + vW
         (newX1', newX2') = restrictPair01 (newX1, newX2)
 
+----------------------------------------------------------------
+
+scopeZoomOn :: CanvasX -> Double -> IORef Scope -> IO ()
+scopeZoomOn focus mult ref = do
+    scope <- readIORef ref
+    let v@View{..} = view scope
+        (newX1, newX2') = restrictPair01 $
+            zoomPair focus mult (viewX1, viewX2)
+        scope' = scope { view = viewSetEnds newX1 newX2' v }
+    scopeUpdate ref scope'
+
 scopeRefresh :: IORef Scope -> IO ()
 scopeRefresh ref = do
     scope <- readIORef ref
@@ -384,6 +395,8 @@ screenToCanvas c (ScreenX sX) = do
 canvasToData :: View -> CanvasX -> DataX
 canvasToData View{..} (CanvasX cX) = translate viewX1 $
     DataX (cX * toDouble (distance viewX1 viewX2))
+
+----------------------------------------------------------------
 
 buttonDown :: IORef Scope -> G.EventM G.EButton ()
 buttonDown ref = do
@@ -431,10 +444,7 @@ wheel ref = do
                        _            -> 1.0
             v@View{..} = view scope
         cX <- screenToCanvas canvas (ScreenX x)
-        let (newX1, newX2') = restrictPair01 $
-                zoomPair cX mult (viewX1, viewX2)
-            scope' = scope { view = viewSetEnds newX1 newX2' v }
-        scopeUpdate ref scope'
+        scopeZoomOn cX mult ref
 
 scroll :: IORef Scope -> IO ()
 scroll ref = do
