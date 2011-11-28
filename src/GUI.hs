@@ -99,12 +99,8 @@ restrictPair (rangeX1, rangeX2) (x1, x2)
 restrictPair01 :: (Ord a, Coordinate a) => (a, a) -> (a, a)
 restrictPair01 = restrictPair (fromDouble 0.0, fromDouble 1.0)
 
--- zoomPair :: Coordinate a => Double -> Double -> (a, a) -> (a, a)
-zoomPair :: (Show a, Coordinate a) => CanvasX -> Double -> (a, a) -> (a, a)
-zoomPair (CanvasX focus) mult (x1, x2) = trace (
-        printf "focus: %f mult: %f off1: %s off2: %s x1: %s x2: %s"
-            focus mult (show off1) (show off2) (show x1) (show x2)
-    ) $ (translate off1 x1, translate off2 x2)
+zoomPair :: Coordinate a => CanvasX -> Double -> (a, a) -> (a, a)
+zoomPair (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
     where
         off1 = fromDouble $ (oldW - newW) * focus
         off2 = fromDouble $ (newW - oldW) * (1.0 - focus)
