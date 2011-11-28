@@ -171,8 +171,8 @@ _writePng =
 -}
 
 -- Display image in window
-guiMain :: Chan String -> IO ()
-guiMain chan = do
+guiMain :: Chan String -> [String] -> IO ()
+guiMain chan args = do
   _ <- G.initGUI
 
   window <- G.windowNew
@@ -254,7 +254,7 @@ guiMain chan = do
 
   scopeRef <- newIORef (scopeNew drawingArea adj)
 
-  addLayersFromFile scopeRef "demo.zoom"
+  mapM_ (addLayersFromFile scopeRef) args
 
   adj `G.onValueChanged` (scroll scopeRef)
 
