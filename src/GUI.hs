@@ -147,10 +147,7 @@ data View = View
 scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
 scopeNew c adj = Scope {
       view = viewInit c adj
-    , layers = [ ScopeLayer textureLayer
-               , ScopeLayer rawTrack1, ScopeLayer rawTrack2
-               , ScopeLayer summaryTrack1, ScopeLayer summaryTrack2
-               ]
+    , layers = [ ScopeLayer textureLayer ]
     }
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
@@ -257,6 +254,8 @@ guiMain chan = do
 
   scopeRef <- newIORef (scopeNew drawingArea adj)
 
+  addLayersFromFile scopeRef "demo.zoom"
+
   adj `G.onValueChanged` (scroll scopeRef)
 
   G.boxPackStart vbox drawingArea G.PackGrow 0
@@ -336,6 +335,15 @@ updateCanvas ref = do
     (width, height) <- G.widgetGetSize c
     G.renderWithDrawable win $ plotWindow width height scope
     return True
+
+----------------------------------------------------------------
+
+addLayersFromFile :: IORef Scope -> FilePath -> IO ()
+addLayersFromFile ref path = do
+    scope <- readIORef ref
+    let layers' = layers scope ++ layersFromFile path
+        scope' = scope { layers = layers' }
+    writeIORef ref scope'
 
 ----------------------------------------------------------------
 
@@ -621,26 +629,12 @@ textureLayer = Layer texturePath 1 textureSize enumTexture renderTex
 ----------------------------------------------------------------------
 -- Raw data
 
-dataPath = "demo.zoom"
-
-rawTrack1 :: Layer (TimeStamp, Double)
-rawTrack1 = Layer dataPath 1 5000 enumDouble (plotRaw 1000000000.0)
-
-rawTrack2 :: Layer (TimeStamp, Double)
-rawTrack2 = Layer dataPath 2 5000 enumDouble (plotRaw 300000.0)
-
 plotRaw :: Double -> Double -> Double -> (TimeStamp, Double) -> C.Render ()
 plotRaw yR x _ (_ts, y) = do
     C.lineTo x (y * 2.0 {- (viewY2 v - viewY1 v)-} / yR)
 
 ----------------------------------------------------------------------
 -- Summary data
-
-summaryTrack1 :: Layer (Summary Double)
-summaryTrack1 = Layer dataPath 1 20 (enumSummaryDouble 1) (plotSummary 1000000000.0 1.0 0 0)
-
-summaryTrack2 :: Layer (Summary Double)
-summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1) (plotSummary 300000.0 1.0 0 0)
 
 plotSummary :: Double -> Double -> Double -> Double -> PlotLayer (Summary Double)
 plotSummary dYRange r g b x _ s = do
@@ -651,3 +645,20 @@ plotSummary dYRange r g b x _ s = do
         fx = numMax . summaryData
 
 ----------------------------------------------------------------------
+
+layersFromFile :: FilePath -> [ScopeLayer]
+layersFromFile dataPath = [ ScopeLayer rawTrack1, ScopeLayer rawTrack2
+                          , ScopeLayer summaryTrack1, ScopeLayer summaryTrack2
+                          ]
+    where
+        rawTrack1 :: Layer (TimeStamp, Double)
+        rawTrack1 = Layer dataPath 1 5000 enumDouble (plotRaw 1000000000.0)
+
+        rawTrack2 :: Layer (TimeStamp, Double)
+        rawTrack2 = Layer dataPath 2 5000 enumDouble (plotRaw 300000.0)
+
+        summaryTrack1 :: Layer (Summary Double)
+        summaryTrack1 = Layer dataPath 1 20 (enumSummaryDouble 1) (plotSummary 1000000000.0 1.0 0 0)
+
+        summaryTrack2 :: Layer (Summary Double)
+        summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1) (plotSummary 300000.0 1.0 0 0)
