@@ -579,18 +579,17 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
         View{..} = view scope
 
         foldData = do
-            I.drop (skipLength dataLength)
-            I.joinI . I.take (visibleLength dataLength) $ canvasMap
+            I.drop skipLength
+            I.joinI . I.take visibleLength $ canvasMap
 
         identifiers = standardIdentifiers ++ textureIdentifiers
 
         canvasMap = do
-            I.foldM (render plotValue (stepWidth dataLength)) (canvasX0 dataLength) >> return ()
+            I.foldM (render plotValue stepWidth) canvasX0 >> return ()
             lift $ C.stroke
 
         -- | Canvas X coordinate of first data point
-        canvasX0 :: Int -> Double
-        canvasX0 l = (fromIntegral (skipLength l) - skip l) * stepWidth l
+        canvasX0 = (fromIntegral skipLength - skip) * stepWidth
 
         render :: PlotLayer a -> Double -> Double -> a -> C.Render Double
         render plot w x d = do
@@ -598,21 +597,19 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
             return (x + w)
 
         -- | Count of data points to drop before rendering
-        skipLength :: Int -> Int
-        skipLength l = floor (skip l) -- $ fromIntegral l * toDouble viewX1
+        skipLength = floor skip
 
         -- | DataX coordinate of start of view
-        skip l = fromIntegral l * toDouble viewX1
+        skip = fromIntegral dataLength * toDouble viewX1
 
         -- | Count of data points visible in view
-        visibleLength :: Int -> Int
-        visibleLength l = ceiling (viz l) + 1
+        visibleLength = ceiling viz + 2
 
         -- | Canvas x length per data point
-        stepWidth s = 1.0 / (toDouble (distance viewX1 viewX2) * fromIntegral s) -- stepWidth l = 1.0 / viz l
+        stepWidth = 1.0 / viz
 
         -- | Fractional number of data points visible in view
-        viz l = fromIntegral l * toDouble (distance viewX1 viewX2)
+        viz = fromIntegral dataLength * toDouble (distance viewX1 viewX2)
 
 ----------------------------------------------------------------------
 -- Texture
