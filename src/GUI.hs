@@ -599,7 +599,7 @@ plotLayer scope Layer{..} = keepState $ do
 
         -- | Count of data points visible in view
         visibleLength :: Int -> Int
-        visibleLength l = trace (printf "viz l: %f" (viz l)) $ ceiling (viz l)
+        visibleLength l = trace (printf "viz l: %f" (viz l)) $ ceiling (viz l) + 1
 
         -- | Canvas x length per data point
         stepWidth s = 1.0 / (toDouble (distance viewX1 viewX2) * fromIntegral s)
