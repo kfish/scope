@@ -46,23 +46,12 @@ module Scope.Types (
     , ScopeLayer(..)
 ) where
 
-import Control.Applicative ((<$>))
-import Control.Concurrent
-import Control.Monad (foldM, replicateM_)
-import Control.Monad.CatchIO
-import Control.Monad.Reader
-import Data.Dynamic
-import Data.IORef
 import Data.Maybe
-import Data.Iteratee (Iteratee, Enumeratee)
-import qualified Data.Iteratee as I
-import Data.ZoomCache.Numeric
+import Data.Iteratee (Enumeratee)
+import Data.ZoomCache
 
 import qualified Graphics.Rendering.Cairo as C
 import qualified Graphics.UI.Gtk as G
-
-import Text.Printf
-import Debug.Trace
 
 ----------------------------------------------------------------------
 
