@@ -428,21 +428,21 @@ plotLayers scope = keepState $ mapM_ f layersByFile
         fn (ScopeLayer l) = filename l
 
 plotFileLayers :: FilePath -> [ScopeLayer] -> Scope -> C.Render ()
-plotFileLayers _path layers scope = mapM_ (plotLayer scope) layers
+plotFileLayers path layers scope =
+    I.fileDriverRandom (I.joinI $ enumCacheFile identifiers (I.sequence_ is)) path
+    where
+        identifiers = standardIdentifiers ++ textureIdentifiers
+        is = map (plotLayer scope) layers
 
-plotLayer :: Scope -> ScopeLayer -> C.Render ()
-plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
-    I.fileDriverRandom (I.joinI $
-        enumCacheFile identifiers (I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ foldData)
-        ) filename
+plotLayer :: Scope -> ScopeLayer -> I.Iteratee [Stream] Render ()
+plotLayer scope (ScopeLayer Layer{..}) =
+    I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ foldData
     where
         View{..} = view scope
 
         foldData = do
             I.drop skipLength
             I.joinI . I.take visibleLength $ render plotter
-
-        identifiers = standardIdentifiers ++ textureIdentifiers
 
         render (LayerMap f) = do
             I.foldM renderMap canvasX0
