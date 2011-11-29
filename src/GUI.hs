@@ -307,9 +307,6 @@ buttonDown ref = do
 buttonRelease :: IORef Scope -> G.EventM G.EButton ()
 buttonRelease ref = liftIO $ modifyIORef ref (scopeModifyView viewButtonRelease)
 
-viewButtonMotion :: CanvasX -> View -> View
-viewButtonMotion cX v@View{..} = viewAlign cX (fromJust dragDX) v
-
 motion :: IORef Scope -> G.EventM G.EMotion ()
 motion ref = do
     (x, _y) <- G.eventCoordinates
@@ -333,16 +330,8 @@ wheel ref = do
 
 scroll :: IORef Scope -> IO ()
 scroll ref = do
-    scope <- readIORef ref
-    val <- G.adjustmentGetValue (adj . view $ scope)
-
-    let v@View{..} = view scope
-        newX1', newX2' :: DataX
-        (newX1', newX2') = restrictPair01 .
-            translatePair (distance viewX1 (DataX val)) $
-            (viewX1, viewX2)
-    let scope' = scope { view = viewSetEnds newX1' newX2' v }
-    scopeUpdate ref scope'
+    val <- G.adjustmentGetValue =<< adj . view <$> readIORef ref
+    scopeModifyUpdate ref $ scopeModifyView (viewMoveTo val)
 
 ----------------------------------------------------------------
 
@@ -572,8 +561,18 @@ viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX
         newX2 = newX1 + vW
         (newX1', newX2') = restrictPair01 (newX1, newX2)
 
+viewMoveTo :: Double -> View -> View
+viewMoveTo val v@View{..} = viewSetEnds newX1' newX2' v
+    where
+        (newX1', newX2') = restrictPair01 .
+            translatePair (distance viewX1 (DataX val)) $
+            (viewX1, viewX2)
+
 viewButtonDown :: CanvasX -> View -> View
 viewButtonDown cX v = v { dragDX = Just (canvasToData v cX) }
+
+viewButtonMotion :: CanvasX -> View -> View
+viewButtonMotion cX v@View{..} = viewAlign cX (fromJust dragDX) v
 
 viewButtonRelease :: View -> View
 viewButtonRelease v = v { dragDX = Nothing}
