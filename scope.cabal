@@ -36,6 +36,7 @@ Library
     zoom-cache                >= 0.8.0.0 && < 0.9
 
   Exposed-modules:
+    Scope.View
     Scope.Types
 
 Executable scope
