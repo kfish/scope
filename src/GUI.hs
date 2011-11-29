@@ -422,7 +422,6 @@ plotLayers scope = keepState $ mapM_ (plotLayer scope) (layers scope)
 
 plotLayer :: Scope -> ScopeLayer -> C.Render ()
 plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
-    C.setSourceRGB 0.0 0 1.0
     I.fileDriverRandom (I.joinI $
         enumCacheFile identifiers (I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ foldData)
         ) filename
@@ -436,15 +435,15 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
         identifiers = standardIdentifiers ++ textureIdentifiers
 
         render (LayerMap f) = do
-            I.foldM renderMap canvasX0 >> return ()
-            lift $ C.stroke
+            I.foldM renderMap canvasX0
+            return ()
             where
                 renderMap x d = do
                     f x stepWidth d
                     return (x + stepWidth)
         render (LayerFold f b00) = do
-            I.foldM renderFold (canvasX0, b00) >> return ()
-            lift $ C.stroke
+            I.foldM renderFold (canvasX0, b00)
+            return ()
             where
                 renderFold (x, b0) d = do
                     b <- f x stepWidth b0 d
