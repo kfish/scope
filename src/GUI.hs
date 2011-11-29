@@ -606,21 +606,20 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
 
         foldData = do
             I.drop skipLength
-            I.joinI . I.take visibleLength $ canvasMap
+            I.joinI . I.take visibleLength $ render plotter
 
         identifiers = standardIdentifiers ++ textureIdentifiers
 
-        canvasMap = do
-            I.foldM (render plotter stepWidth) canvasX0 >> return ()
+        render (LayerMap f) = do
+            I.foldM renderMap canvasX0 >> return ()
             lift $ C.stroke
+            where
+                renderMap x d = do
+                    f x stepWidth d
+                    return (x + stepWidth)
 
         -- | Canvas X coordinate of first data point
         canvasX0 = (fromIntegral skipLength - skip) * stepWidth
-
-        render :: LayerPlot a -> Double -> Double -> a -> C.Render Double
-        render (LayerMap f) w x d = do
-            f x w d
-            return (x + w)
 
         -- | Count of data points to drop before rendering
         skipLength = floor skip
