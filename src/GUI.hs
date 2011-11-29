@@ -262,14 +262,6 @@ scopeModifyUpdate ref f = do
     G.adjustmentSetPageSize adj $ toDouble (distance viewX1 viewX2)
     G.widgetQueueDraw canvas
 
-scopeUpdate :: IORef Scope -> Scope -> IO ()
-scopeUpdate ref scope = do
-    writeIORef ref scope
-    let View{..} = view scope
-    G.adjustmentSetValue adj (toDouble viewX1)
-    G.adjustmentSetPageSize adj $ toDouble (distance viewX1 viewX2)
-    G.widgetQueueDraw canvas
-
 ----------------------------------------------------------------
 
 _canvasToScreen :: G.DrawingArea -> CanvasX -> IO ScreenX
