@@ -2,7 +2,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wall -fno-warn-unused-do-bind -fno-warn-orphans #-}
 --
 -- Based on Gtk2Hs/demo/cairo/Drawing2.hs 
 -- Author: Johan Bockgård <bojohan@dd.chalmers.se>
@@ -18,27 +18,23 @@ import Prelude hiding (catch)
 
 import Control.Applicative ((<$>))
 import Control.Concurrent
-import Control.Monad (foldM, replicateM_)
 import Control.Monad.CatchIO
 import Control.Monad.Reader
-import Data.Dynamic
 import Data.IORef
 import Data.Maybe
-import Data.Iteratee (Iteratee, Enumeratee)
 import qualified Data.Iteratee as I
 import Data.ZoomCache.Numeric
 import Data.ZoomCache.Texture
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
 import Graphics.Rendering.Cairo.Internal (Render(..))
+import Graphics.Rendering.Cairo.Types (Cairo)
 import qualified Graphics.Rendering.Cairo.Matrix as M
 
 import Text.Printf
 
 import Paths_scope as My
 import Scope.Types
-
-import Debug.Trace
 
 ----------------------------------------------------------------------
 
@@ -75,8 +71,7 @@ guiMain chan args = do
   filename <- My.getDataFileName "data/actions.ui"
   G.uiManagerAddUiFromFile ui filename
 
-  let getAction = fmap fromJust . G.uiManagerGetAction ui
-      getWidget = fmap fromJust . G.uiManagerGetWidget ui
+  let getWidget = fmap fromJust . G.uiManagerGetWidget ui
 
   -- Menubar
   fma <- G.actionNew "FMA" "File" Nothing Nothing
@@ -163,8 +158,7 @@ guiMain chan args = do
 
   G.widgetSetCanFocus drawingArea True
 
-  -- _ <- G.onExpose drawingArea $ const (updateCanvas drawingArea)
-  cid <- drawingArea `G.on` G.exposeEvent $ G.tryEvent $ do
+  drawingArea `G.on` G.exposeEvent $ G.tryEvent $ do
     liftIO $ updateCanvas scopeRef
     return ()
 
@@ -306,8 +300,8 @@ scopeUpdate ref scope = do
 
 ----------------------------------------------------------------
 
-canvasToScreen :: G.DrawingArea -> CanvasX -> IO ScreenX
-canvasToScreen c (CanvasX cX) = do
+_canvasToScreen :: G.DrawingArea -> CanvasX -> IO ScreenX
+_canvasToScreen c (CanvasX cX) = do
     (width, _height) <- G.widgetGetSize c
     return $ ScreenX (fromIntegral width * cX)
 
@@ -324,7 +318,7 @@ canvasToData View{..} (CanvasX cX) = translate viewX1 $
 
 buttonDown :: IORef Scope -> G.EventM G.EButton ()
 buttonDown ref = do
-    (x, y) <- G.eventCoordinates
+    (x, _y) <- G.eventCoordinates
     liftIO $ do
         scope <- readIORef ref
         let c = canvas . view $ scope
@@ -336,21 +330,18 @@ buttonDown ref = do
         writeIORef ref scope'
 
 buttonRelease :: IORef Scope -> G.EventM G.EButton ()
-buttonRelease ref = do
-    (x, y) <- G.eventCoordinates
-    liftIO $ do
-        scope <- readIORef ref
-        -- putStrLn $ printf "release (%f, %f)" x y
-        let view' = (view scope) { dragDX = Nothing }
-            scope' = scope { view = view' }
-        writeIORef ref scope'
+buttonRelease ref = liftIO $ do
+    scope <- readIORef ref
+    let view' = (view scope) { dragDX = Nothing }
+        scope' = scope { view = view' }
+    writeIORef ref scope'
 
 motion :: IORef Scope -> G.EventM G.EMotion ()
 motion ref = do
-    (x, y) <- G.eventCoordinates
+    (x, _y) <- G.eventCoordinates
     liftIO $ do
         scope <- readIORef ref
-        let v@View{..} = view scope
+        let View{..} = view scope
         cX <- screenToCanvas canvas (ScreenX x)
         let dX0 = fromJust dragDX
         let scope' = scope { view = viewAlign cX dX0 (view scope) }
@@ -358,11 +349,11 @@ motion ref = do
 
 wheel :: IORef Scope -> G.EventM G.EScroll ()
 wheel ref = do
-    (x, y) <- G.eventCoordinates
+    (x, _y) <- G.eventCoordinates
     dir <- G.eventScrollDirection
     liftIO $ do
         scope <- readIORef ref
-        let v@View{..} = view scope
+        let View{..} = view scope
         cX <- screenToCanvas canvas (ScreenX x)
         case dir of
             G.ScrollUp   -> scopeZoomInOn  cX 1.2 ref
@@ -480,6 +471,7 @@ instance MonadCatchIO C.Render where
   block       = mapRender block
   unblock     = mapRender unblock
 
+mapRender :: (ReaderT Cairo IO m1 -> ReaderT Cairo IO m) -> Render m1 -> Render m
 mapRender f = Render . f . runRender
 
 ----------------------------------------------------------------
@@ -542,7 +534,7 @@ textureLayer :: Layer (TimeStamp, TextureSlice)
 textureLayer = Layer texturePath 1 textureSize enumTexture (LayerMap renderTex)
     where
         texturePath = "../texture-synthesis/texture.zoom"
-        textureSize = (2^5)+1
+        textureSize = (2^(5::Int))+1
         texH = 2.0 {- (viewY2 v - viewY1 v)-} / fromIntegral textureSize
 
         renderTex :: Double -> Double -> (TimeStamp, TextureSlice) -> C.Render ()
