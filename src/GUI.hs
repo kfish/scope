@@ -110,8 +110,10 @@ zoomPair (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
 ----------------------------------------------------------------------
 
 type LayerMapFunc a = Double -> Double -> a -> C.Render ()
+type LayerFoldFunc a b = Double -> Double -> b -> a -> C.Render b
 
 data LayerPlot a = LayerMap (LayerMapFunc a)
+                 | forall b . LayerFold (LayerFoldFunc a b) b
 
 data Layer a = Layer
     { filename :: FilePath
@@ -617,6 +619,13 @@ plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
                 renderMap x d = do
                     f x stepWidth d
                     return (x + stepWidth)
+        render (LayerFold f b00) = do
+            I.foldM renderFold (canvasX0, b00) >> return ()
+            lift $ C.stroke
+            where
+                renderFold (x, b0) d = do
+                    b <- f x stepWidth b0 d
+                    return (x + stepWidth, b)
 
         -- | Canvas X coordinate of first data point
         canvasX0 = (fromIntegral skipLength - skip) * stepWidth
@@ -668,13 +677,27 @@ plotRaw yR x _ (_ts, y) = do
 ----------------------------------------------------------------------
 -- Summary data
 
-plotSummary :: Double -> Double -> Double -> Double -> LayerMapFunc (Summary Double)
-plotSummary dYRange r g b x _w s = do
-    C.setSourceRGB r g b
-    C.lineTo x y
+plotSummary :: Double -> Double -> Double -> Double
+            -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
+plotSummary dYRange r g b x w Nothing s =
+    plotSummary dYRange r g b x w (Just s) s
+plotSummary dYRange r g b x w (Just s0) s = do
+    C.setSourceRGBA r g b 0.3
+    C.moveTo x     (y (numMax sd0))
+    C.lineTo (x+w) (y (numMax sd))
+    C.lineTo (x+w) (y (numMin sd))
+    C.lineTo x     (y (numMin sd0))
+    C.fill
+
+    C.setSourceRGB (r*0.6) (g*0.6) (b*0.6)
+    C.moveTo x     (y (numAvg sd0))
+    C.lineTo (x+w) (y (numAvg sd))
+    C.stroke
+    return (Just s)
     where
-        y = fx s * 4.0 / dYRange
-        fx = numMax . summaryData
+        sd0 = summaryData s0
+        sd = summaryData s
+        y v = v * 4.0 / dYRange
 
 ----------------------------------------------------------------------
 
@@ -691,8 +714,8 @@ layersFromFile dataPath = [ ScopeLayer rawTrack1, ScopeLayer rawTrack2
 
         summaryTrack1 :: Layer (Summary Double)
         summaryTrack1 = Layer dataPath 1 20 (enumSummaryDouble 1)
-                            (LayerMap $ plotSummary 1000000000.0 1.0 0 0)
+                            (LayerFold (plotSummary 1000000000.0 1.0 0 0) Nothing)
 
         summaryTrack2 :: Layer (Summary Double)
         summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1)
-                            (LayerMap $ plotSummary 300000.0 1.0 0 0)
+                            (LayerFold (plotSummary 300000.0 1.0 0 0) Nothing)
