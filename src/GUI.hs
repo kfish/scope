@@ -186,7 +186,6 @@ myNew = putStrLn "New"
 
 myFileOpen :: IORef Scope -> G.FileChooserDialog -> G.ResponseId -> IO ()
 myFileOpen scopeRef fcdialog response = do
-  putStrLn $ printf "myFileOpen %s" (show response)
   case response of
     G.ResponseAccept -> do
         Just filename <- G.fileChooserGetFilename fcdialog
