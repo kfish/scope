@@ -318,10 +318,7 @@ buttonDown ref = do
 
 buttonRelease :: IORef Scope -> G.EventM G.EButton ()
 buttonRelease ref = liftIO $ do
-    scope <- readIORef ref
-    let view' = (view scope) { dragDX = Nothing }
-        scope' = scope { view = view' }
-    writeIORef ref scope'
+    modifyIORef ref (\scope -> scope{ view = viewButtonRelease (view scope) })
 
 motion :: IORef Scope -> G.EventM G.EMotion ()
 motion ref = do
@@ -567,6 +564,11 @@ plotSummary dYRange r g b x w (Just s0) s = do
         sd0 = summaryData s0
         sd = summaryData s
         y v = v * 4.0 / dYRange
+
+----------------------------------------------------------------------
+
+viewButtonRelease :: View -> View
+viewButtonRelease v = v { dragDX = Nothing}
 
 ----------------------------------------------------------------------
 
