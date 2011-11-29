@@ -25,5 +25,5 @@ setupMonitor args = later waitForChildren $ do
 monitor :: Chan String -> IO()
 monitor chan = do
     x <- readChan chan
-    putStrLn $ "Received message: " ++ x
+    -- putStrLn $ "Received message: " ++ x
     when (x /= "quit") $ monitor chan
