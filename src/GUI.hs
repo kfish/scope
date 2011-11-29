@@ -219,34 +219,34 @@ updateCanvas ref = do
 
 ----------------------------------------------------------------
 
-scopeAlign :: CanvasX -> DataX -> IORef Scope -> IO ()
-scopeAlign cx dx ref = scopeModifyUpdate ref (scopeModifyView (viewAlign cx dx))
+scopeAlign :: IORef Scope -> CanvasX -> DataX -> IO ()
+scopeAlign ref cx dx = scopeModifyUpdate ref (scopeModifyView (viewAlign cx dx))
 
 scopeMoveLeft :: IORef Scope -> IO ()
 scopeMoveLeft ref = do
     scope <- readIORef ref
     let View{..} = view scope
-    scopeAlign (CanvasX 0.0) viewX2 ref
+    scopeAlign ref (CanvasX 0.0) viewX2
 
 scopeMoveRight :: IORef Scope -> IO ()
 scopeMoveRight ref = do
     scope <- readIORef ref
     let View{..} = view scope
-    scopeAlign (CanvasX 1.0) viewX1 ref
+    scopeAlign ref (CanvasX 1.0) viewX1
 
 ----------------------------------------------------------------
 
-scopeZoomIn :: Double -> IORef Scope -> IO ()
-scopeZoomIn = scopeZoomInOn (CanvasX 0.5)
+scopeZoomIn :: IORef Scope -> Double -> IO ()
+scopeZoomIn ref = scopeZoomInOn ref (CanvasX 0.5)
 
-scopeZoomOut :: Double -> IORef Scope -> IO ()
-scopeZoomOut = scopeZoomOutOn (CanvasX 0.5)
+scopeZoomOut :: IORef Scope -> Double -> IO ()
+scopeZoomOut ref = scopeZoomOutOn ref (CanvasX 0.5)
 
-scopeZoomInOn :: CanvasX -> Double -> IORef Scope -> IO ()
-scopeZoomInOn focus mult = scopeZoomOutOn focus (1.0/mult)
+scopeZoomInOn :: IORef Scope -> CanvasX -> Double -> IO ()
+scopeZoomInOn ref focus mult = scopeZoomOutOn ref focus (1.0/mult)
 
-scopeZoomOutOn :: CanvasX -> Double -> IORef Scope -> IO ()
-scopeZoomOutOn focus mult ref =
+scopeZoomOutOn :: IORef Scope -> CanvasX -> Double -> IO ()
+scopeZoomOutOn ref focus mult =
     scopeModifyUpdate ref (scopeModifyView (viewZoomOutOn focus mult))
 
 scopeModifyRedraw :: IORef Scope -> (Scope -> Scope) -> IO ()
@@ -308,8 +308,8 @@ wheel ref = do
         let View{..} = view scope
         cX <- screenToCanvas canvas (ScreenX x)
         case dir of
-            G.ScrollUp   -> scopeZoomInOn  cX 1.2 ref
-            G.ScrollDown -> scopeZoomOutOn cX 1.2 ref
+            G.ScrollUp   -> scopeZoomInOn  ref cX 1.2
+            G.ScrollDown -> scopeZoomOutOn ref cX 1.2
             _            -> return ()
 
 scroll :: IORef Scope -> IO ()
@@ -336,10 +336,10 @@ keyDown ref = do
     v <- G.eventKeyVal
     liftIO . putStrLn $ printf "Key %s (%d) pressed" n v
     liftIO $ case v of
-        XK_Home -> scopeAlign (CanvasX 0.0) (DataX 0.0) ref
-        XK_End  -> scopeAlign (CanvasX 1.0) (DataX 1.0) ref
-        XK_Up   -> scopeZoomIn  2.0 ref
-        XK_Down -> scopeZoomOut 2.0 ref
+        XK_Home -> scopeAlign ref (CanvasX 0.0) (DataX 0.0)
+        XK_End  -> scopeAlign ref (CanvasX 1.0) (DataX 1.0)
+        XK_Up   -> scopeZoomIn  ref 2.0
+        XK_Down -> scopeZoomOut ref 2.0
         XK_Left  -> scopeMoveRight ref
         XK_Right -> scopeMoveLeft ref
         XK_Page_Up -> putStrLn "XK_PageUp"
