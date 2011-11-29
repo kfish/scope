@@ -220,10 +220,7 @@ updateCanvas ref = do
 ----------------------------------------------------------------
 
 scopeAlign :: CanvasX -> DataX -> IORef Scope -> IO ()
-scopeAlign cx dx ref = do
-    scope <- readIORef ref
-    let scope' = scope { view = viewAlign cx dx (view scope) }
-    scopeUpdate ref scope'
+scopeAlign cx dx ref = scopeModifyUpdate ref (scopeModifyView (viewAlign cx dx))
 
 scopeMoveLeft :: IORef Scope -> IO ()
 scopeMoveLeft ref = do
