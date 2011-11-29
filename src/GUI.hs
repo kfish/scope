@@ -292,14 +292,9 @@ buttonDown :: IORef Scope -> G.EventM G.EButton ()
 buttonDown ref = do
     (x, _y) <- G.eventCoordinates
     liftIO $ do
-        scope <- readIORef ref
-        let c = canvas . view $ scope
-        dX <- canvasToData (view scope) <$> screenToCanvas c (ScreenX x)
-        let v = view scope
-            view' = v { dragDX = Just dX
-                      }
-            scope' = scope { view = view' }
-        writeIORef ref scope'
+        c <- canvas . view <$> readIORef ref
+        cX <- screenToCanvas c (ScreenX x)
+        modifyIORef ref (scopeModifyView (viewButtonDown cX))
 
 buttonRelease :: IORef Scope -> G.EventM G.EButton ()
 buttonRelease ref = liftIO $ modifyIORef ref (scopeModifyView viewButtonRelease)
@@ -568,6 +563,9 @@ viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX
         newX1 = max 0 $ dx - (cx * vW)
         newX2 = newX1 + vW
         (newX1', newX2') = restrictPair01 (newX1, newX2)
+
+viewButtonDown :: CanvasX -> View -> View
+viewButtonDown cX v = v { dragDX = Just (canvasToData v cX) }
 
 viewButtonRelease :: View -> View
 viewButtonRelease v = v { dragDX = Nothing}
