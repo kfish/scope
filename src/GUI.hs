@@ -219,21 +219,6 @@ updateCanvas ref = do
 
 ----------------------------------------------------------------
 
-viewSetEnds :: DataX -> DataX -> View -> View
-viewSetEnds x1 x2 v@View{..} = v { viewX1 = x1, viewX2 = x2 }
-
--- | Align a view so the given DataX appears at CanvasX,
--- preserving the current view width.
-viewAlign :: CanvasX -> DataX -> View -> View
-viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX newX2') v
-    where
-        DataX vW = distance viewX1 viewX2 -- current width of view window
-        newX1 = max 0 $ dx - (cx * vW)
-        newX2 = newX1 + vW
-        (newX1', newX2') = restrictPair01 (newX1, newX2)
-
-----------------------------------------------------------------
-
 scopeAlign :: CanvasX -> DataX -> IORef Scope -> IO ()
 scopeAlign cx dx ref = do
     scope <- readIORef ref
@@ -566,6 +551,19 @@ plotSummary dYRange r g b x w (Just s0) s = do
         y v = v * 4.0 / dYRange
 
 ----------------------------------------------------------------------
+
+viewSetEnds :: DataX -> DataX -> View -> View
+viewSetEnds x1 x2 v@View{..} = v { viewX1 = x1, viewX2 = x2 }
+
+-- | Align a view so the given DataX appears at CanvasX,
+-- preserving the current view width.
+viewAlign :: CanvasX -> DataX -> View -> View
+viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX newX2') v
+    where
+        DataX vW = distance viewX1 viewX2 -- current width of view window
+        newX1 = max 0 $ dx - (cx * vW)
+        newX2 = newX1 + vW
+        (newX1', newX2') = restrictPair01 (newX1, newX2)
 
 viewButtonRelease :: View -> View
 viewButtonRelease v = v { dragDX = Nothing}
