@@ -262,6 +262,14 @@ scopeModifyRedraw ref f = do
     modifyIORef ref f
     G.widgetQueueDraw =<< canvas . view <$> readIORef ref
 
+scopeModifyUpdate :: IORef Scope -> (Scope -> Scope) -> IO ()
+scopeModifyUpdate ref f = do
+    modifyIORef ref f
+    View{..} <- view <$> readIORef ref
+    G.adjustmentSetValue adj (toDouble viewX1)
+    G.adjustmentSetPageSize adj $ toDouble (distance viewX1 viewX2)
+    G.widgetQueueDraw canvas
+
 scopeUpdate :: IORef Scope -> Scope -> IO ()
 scopeUpdate ref scope = do
     writeIORef ref scope
@@ -299,16 +307,16 @@ buttonDown ref = do
 buttonRelease :: IORef Scope -> G.EventM G.EButton ()
 buttonRelease ref = liftIO $ modifyIORef ref (scopeModifyView viewButtonRelease)
 
+viewButtonMotion :: CanvasX -> View -> View
+viewButtonMotion cX v@View{..} = viewAlign cX (fromJust dragDX) v
+
 motion :: IORef Scope -> G.EventM G.EMotion ()
 motion ref = do
     (x, _y) <- G.eventCoordinates
     liftIO $ do
-        scope <- readIORef ref
-        let View{..} = view scope
+        View{..} <- view <$> readIORef ref
         cX <- screenToCanvas canvas (ScreenX x)
-        let dX0 = fromJust dragDX
-        let scope' = scope { view = viewAlign cX dX0 (view scope) }
-        scopeUpdate ref scope'
+        scopeModifyUpdate ref $ scopeModifyView (viewButtonMotion cX)
 
 wheel :: IORef Scope -> G.EventM G.EScroll ()
 wheel ref = do
