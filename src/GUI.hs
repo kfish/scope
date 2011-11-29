@@ -541,12 +541,12 @@ layersFromFile dataPath = [ ScopeLayer rawTrack1, ScopeLayer rawTrack2
         rawTrack2 = Layer dataPath 2 5000 enumDouble (LayerMap $ plotRaw 300000.0)
 
         summaryTrack1 :: Layer (Summary Double)
-        summaryTrack1 = Layer dataPath 1 20 (enumSummaryDouble 1)
-                            (LayerFold (plotSummary 1000000000.0 1.0 0 0) Nothing)
+        summaryTrack1 = Layer dataPath 1 100 (enumSummaryDouble 1)
+                            (LayerFold (plotSummary 2000000000.0 1.0 0 0) Nothing)
 
         summaryTrack2 :: Layer (Summary Double)
-        summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1)
-                            (LayerFold (plotSummary 300000.0 1.0 0 0) Nothing)
+        summaryTrack2 = Layer dataPath 2 100 (enumSummaryDouble 1)
+                            (LayerFold (plotSummary 3000000.0 0.0 0 1.0) Nothing)
 
 addLayersFromFile :: FilePath -> Scope -> Scope
 addLayersFromFile path scope = scope { layers = layers' }
