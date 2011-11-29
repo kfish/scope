@@ -136,7 +136,7 @@ guiMain chan args = do
   let scope = scopeNew drawingArea adj
   scopeRef <- newIORef (scope { layers = [ScopeLayer textureLayer] })
 
-  mapM_ (addLayersFromFile scopeRef) args
+  mapM_ (modifyIORef scopeRef . addLayersFromFile) args
   openDialog `G.on` G.response $ myFileOpen scopeRef openDialog
 
   adj `G.onValueChanged` (scroll scopeRef)
@@ -190,7 +190,7 @@ myFileOpen scopeRef fcdialog response = do
   case response of
     G.ResponseAccept -> do
         Just filename <- G.fileChooserGetFilename fcdialog
-        addLayersFromFile scopeRef filename
+        scopeModifyRedraw scopeRef (addLayersFromFile filename)
     _ -> return ()
   G.widgetHide fcdialog
 
@@ -217,17 +217,6 @@ updateCanvas ref = do
     (width, height) <- G.widgetGetSize c
     G.renderWithDrawable win $ plotWindow width height scope
     return True
-
-----------------------------------------------------------------
-
-addLayersFromFile :: IORef Scope -> FilePath -> IO ()
-addLayersFromFile ref path = do
-    putStrLn $ printf "Adding layers from %s" path
-    scope <- readIORef ref
-    let layers' = layers scope ++ layersFromFile path
-        scope' = scope { layers = layers' }
-    writeIORef ref scope'
-    scopeRefresh ref
 
 ----------------------------------------------------------------
 
@@ -284,11 +273,10 @@ scopeZoomOutOn focus mult ref = do
         scope' = scope { view = viewSetEnds newX1 newX2' v }
     scopeUpdate ref scope'
 
-scopeRefresh :: IORef Scope -> IO ()
-scopeRefresh ref = do
-    scope <- readIORef ref
-    let View{..} = view scope
-    G.widgetQueueDraw canvas
+scopeModifyRedraw :: IORef Scope -> (Scope -> Scope) -> IO ()
+scopeModifyRedraw ref f = do
+    modifyIORef ref f
+    G.widgetQueueDraw =<< canvas . view <$> readIORef ref
 
 scopeUpdate :: IORef Scope -> Scope -> IO ()
 scopeUpdate ref scope = do
@@ -601,3 +589,11 @@ layersFromFile dataPath = [ ScopeLayer rawTrack1, ScopeLayer rawTrack2
         summaryTrack2 :: Layer (Summary Double)
         summaryTrack2 = Layer dataPath 2 20 (enumSummaryDouble 1)
                             (LayerFold (plotSummary 300000.0 1.0 0 0) Nothing)
+
+addLayersFromFile :: FilePath -> Scope -> Scope
+addLayersFromFile path scope = scope { layers = layers' }
+    where
+        layers' = layers scope ++ layersFromFile path
+
+----------------------------------------------------------------
+
