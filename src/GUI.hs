@@ -246,13 +246,8 @@ scopeZoomInOn :: CanvasX -> Double -> IORef Scope -> IO ()
 scopeZoomInOn focus mult = scopeZoomOutOn focus (1.0/mult)
 
 scopeZoomOutOn :: CanvasX -> Double -> IORef Scope -> IO ()
-scopeZoomOutOn focus mult ref = do
-    scope <- readIORef ref
-    let v@View{..} = view scope
-        (newX1, newX2') = restrictPair01 $
-            zoomPair focus mult (viewX1, viewX2)
-        scope' = scope { view = viewSetEnds newX1 newX2' v }
-    scopeUpdate ref scope'
+scopeZoomOutOn focus mult ref =
+    scopeModifyUpdate ref (scopeModifyView (viewZoomOutOn focus mult))
 
 scopeModifyRedraw :: IORef Scope -> (Scope -> Scope) -> IO ()
 scopeModifyRedraw ref f = do
@@ -564,6 +559,12 @@ viewMoveTo val v@View{..} = viewSetEnds newX1' newX2' v
         (newX1', newX2') = restrictPair01 .
             translatePair (distance viewX1 (DataX val)) $
             (viewX1, viewX2)
+
+viewZoomOutOn :: CanvasX -> Double -> View -> View
+viewZoomOutOn focus mult v@View{..} = viewSetEnds newX1 newX2' v
+    where
+        (newX1, newX2') = restrictPair01 $
+            zoomPair focus mult (viewX1, viewX2)
 
 viewButtonDown :: CanvasX -> View -> View
 viewButtonDown cX v = v { dragDX = Just (canvasToData v cX) }
