@@ -20,7 +20,9 @@ import Control.Applicative ((<$>))
 import Control.Concurrent
 import Control.Monad.CatchIO
 import Control.Monad.Reader
+import Data.Function (on)
 import Data.IORef
+import Data.List (groupBy)
 import Data.Maybe
 import qualified Data.Iteratee as I
 import Data.ZoomCache.Numeric
@@ -418,7 +420,15 @@ mapRender f = Render . f . runRender
 ----------------------------------------------------------------
 
 plotLayers :: Scope -> C.Render ()
-plotLayers scope = keepState $ mapM_ (plotLayer scope) (layers scope)
+plotLayers scope = keepState $ mapM_ f layersByFile
+    where
+        f :: [ScopeLayer] -> C.Render ()
+        f ls = plotFileLayers (fn . head $ ls) ls scope
+        layersByFile = groupBy ((==) `on` fn) (layers scope)
+        fn (ScopeLayer l) = filename l
+
+plotFileLayers :: FilePath -> [ScopeLayer] -> Scope -> C.Render ()
+plotFileLayers _path layers scope = mapM_ (plotLayer scope) layers
 
 plotLayer :: Scope -> ScopeLayer -> C.Render ()
 plotLayer scope (ScopeLayer Layer{..}) = keepState $ do
