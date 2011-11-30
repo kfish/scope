@@ -563,7 +563,7 @@ layersFromFile path = do
                                (LayerFold (plotSummary (yRange s) 1.0 0.0 0.0) Nothing)
 
         yRange :: Summary Double -> Double
-        yRange s = max (abs . numMin . summaryData $ s) (abs . numMax . summaryData $ s)
+        yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
 
 addLayersFromFile :: FilePath -> Scope -> IO Scope
 addLayersFromFile path scope = do
