@@ -421,10 +421,10 @@ mapRender f = Render . f . runRender
 ----------------------------------------------------------------
 
 plotLayers :: Scope -> C.Render ()
-plotLayers scope = keepState $ mapM_ f layersByFile
+plotLayers scope = mapM_ f layersByFile
     where
         f :: [ScopeLayer] -> C.Render ()
-        f ls = plotFileLayers (fn . head $ ls) ls scope
+        f ls = keepState $ plotFileLayers (fn . head $ ls) ls scope
         layersByFile = groupBy ((==) `on` fn) (layers scope)
         fn (ScopeLayer l) = filename l
 
