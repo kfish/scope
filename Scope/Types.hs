@@ -64,6 +64,25 @@ class Coordinate a where
     -- | Translate x by
     translate :: a -> a -> a
 
+{- |
+
+@
+           CanvasX 0.0                       CanvasX 1.0    DataX 1.0
+              |                                 |              |
+ DataX 0.0    V                                 V              V
+    |
+    V          ---------------------------------   <- CanvasY -1.0
+              |                                 |
+    +---------+---------------------------------+--------------+
+    |         |                                 |              |
+    |         |                                 |              |
+    +---------+---------------------------------+--------------+
+              |                                 |
+               ---------------------------------   <- CanvasY -1.0
+@
+
+-}
+
 newtype ScreenX = ScreenX Double deriving (Eq, Ord, Show)
 newtype ScreenY = ScreenY Double deriving (Eq, Ord, Show)
 newtype CanvasX = CanvasX Double deriving (Eq, Ord, Show)
