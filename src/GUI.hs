@@ -503,9 +503,12 @@ textureLayer = Layer texturePath 1 textureSize enumTexture (LayerMap renderTex)
 ----------------------------------------------------------------------
 -- Raw data
 
-plotRaw :: Double -> Double -> Double -> (TimeStamp, Double) -> C.Render ()
-plotRaw yR x _ (_ts, y) = do
-    C.lineTo x (y * 2.0 {- (viewY2 v - viewY1 v)-} / yR)
+plotRaw :: Double -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
+plotRaw yR x w Nothing (ts, y) = plotRaw yR x w (Just y) (ts, y)
+plotRaw yR x w (Just y0) (_ts, y) = do
+    C.moveTo x     y0
+    C.lineTo (x+w) (y * 2.0 {- (viewY2 v - viewY1 v)-} / yR)
+    return (Just y)
 
 ----------------------------------------------------------------------
 -- Summary data
@@ -553,7 +556,7 @@ layersFromFile path = do
                            ]
 
         rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
-        rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerMap $ plotRaw (yRange s))
+        rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
 
         sLayer :: TrackNo -> Summary Double -> Layer (Summary Double)
         sLayer trackNo s = Layer path trackNo 100 (enumSummaryDouble 1)
