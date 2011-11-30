@@ -53,6 +53,7 @@ Executable scope
   Hs-Source-Dirs:      src
   Build-Depends:
     cairo,
+    containers                >= 0.2     && < 0.5,
     glib,
     gtk,
     iteratee                  >= 0.8.6.0 && < 0.9,

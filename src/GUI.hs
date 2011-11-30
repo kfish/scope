@@ -21,6 +21,7 @@ import Control.Concurrent
 import Control.Monad.CatchIO
 import Control.Monad.Reader
 import Data.Function (on)
+import qualified Data.IntMap as IM
 import Data.IORef
 import Data.List (groupBy)
 import Data.Maybe
@@ -139,7 +140,7 @@ guiMain chan args = do
   let scope = scopeNew drawingArea adj
   scopeRef <- newIORef (scope { layers = [ScopeLayer textureLayer] })
 
-  mapM_ (modifyIORef scopeRef . addLayersFromFile) args
+  mapM_ (modifyIORefM scopeRef . addLayersFromFile) args
   openDialog `G.on` G.response $ myFileOpen scopeRef openDialog
 
   adj `G.onValueChanged` (scroll scopeRef)
@@ -192,7 +193,7 @@ myFileOpen scopeRef fcdialog response = do
   case response of
     G.ResponseAccept -> do
         Just filename <- G.fileChooserGetFilename fcdialog
-        scopeModifyRedraw scopeRef (addLayersFromFile filename)
+        scopeModifyMRedraw scopeRef (addLayersFromFile filename)
     _ -> return ()
   G.widgetHide fcdialog
 
@@ -252,9 +253,9 @@ scopeZoomOutOn :: IORef Scope -> CanvasX -> Double -> IO ()
 scopeZoomOutOn ref focus mult =
     scopeModifyUpdate ref (scopeModifyView (viewZoomOutOn focus mult))
 
-scopeModifyRedraw :: IORef Scope -> (Scope -> Scope) -> IO ()
-scopeModifyRedraw ref f = do
-    modifyIORef ref f
+scopeModifyMRedraw :: IORef Scope -> (Scope -> IO Scope) -> IO ()
+scopeModifyMRedraw ref f = do
+    modifyIORefM ref f
     G.widgetQueueDraw =<< canvas . view <$> readIORef ref
 
 scopeModifyUpdate :: IORef Scope -> (Scope -> Scope) -> IO ()
@@ -538,29 +539,39 @@ scopeModifyView f scope = scope{ view = f (view scope) }
 
 ----------------------------------------------------------------------
 
-layersFromFile :: FilePath -> [ScopeLayer]
-layersFromFile dataPath = [ ScopeLayer rawTrack1, ScopeLayer rawTrack2
-                          , ScopeLayer summaryTrack1, ScopeLayer summaryTrack2
-                          ]
+layersFromFile :: FilePath -> IO [ScopeLayer]
+layersFromFile path = do
+    tracks <- IM.keys . cfSpecs <$> I.fileDriverRandom (iterHeaders standardIdentifiers) path
+    concat <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) tracks
     where
-        rawTrack1 :: Layer (TimeStamp, Double)
-        rawTrack1 = Layer dataPath 1 5000 enumDouble (LayerMap $ plotRaw 1000000000.0)
+        iterLayers trackNo = layers trackNo <$>
+            wholeTrackSummaryDouble standardIdentifiers trackNo
 
-        rawTrack2 :: Layer (TimeStamp, Double)
-        rawTrack2 = Layer dataPath 2 5000 enumDouble (LayerMap $ plotRaw 300000.0)
+        layers :: TrackNo -> Summary Double -> [ScopeLayer]
+        layers trackNo s = [ ScopeLayer (rawLayer trackNo s)
+                           , ScopeLayer (sLayer trackNo s)
+                           ]
 
-        summaryTrack1 :: Layer (Summary Double)
-        summaryTrack1 = Layer dataPath 1 100 (enumSummaryDouble 1)
-                            (LayerFold (plotSummary 2000000000.0 1.0 0 0) Nothing)
+        rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
+        rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerMap $ plotRaw (yRange s))
 
-        summaryTrack2 :: Layer (Summary Double)
-        summaryTrack2 = Layer dataPath 2 100 (enumSummaryDouble 1)
-                            (LayerFold (plotSummary 3000000.0 0.0 0 1.0) Nothing)
+        sLayer :: TrackNo -> Summary Double -> Layer (Summary Double)
+        sLayer trackNo s = Layer path trackNo 100 (enumSummaryDouble 1)
+                               (LayerFold (plotSummary (yRange s) 1.0 0.0 0.0) Nothing)
 
-addLayersFromFile :: FilePath -> Scope -> Scope
-addLayersFromFile path scope = scope { layers = layers' }
-    where
-        layers' = layers scope ++ layersFromFile path
+        yRange :: Summary Double -> Double
+        yRange s = max (abs . numMin . summaryData $ s) (abs . numMax . summaryData $ s)
+
+addLayersFromFile :: FilePath -> Scope -> IO Scope
+addLayersFromFile path scope = do
+    newLayers <- layersFromFile path
+    return $ scope { layers = layers scope ++ newLayers }
+
+modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
+modifyIORefM ref f = do
+    x <- readIORef ref
+    x' <- f x
+    writeIORef ref x'
 
 ----------------------------------------------------------------
 
