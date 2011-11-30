@@ -559,7 +559,7 @@ layersFromFile path = do
         rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
 
         sLayer :: TrackNo -> Summary Double -> Layer (Summary Double)
-        sLayer trackNo s = Layer path trackNo 100 (enumSummaryDouble 1)
+        sLayer trackNo s = Layer path trackNo 600 (enumSummaryDouble 1)
                                (LayerFold (plotSummary (yRange s) 1.0 0.0 0.0) Nothing)
 
         yRange :: Summary Double -> Double
