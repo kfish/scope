@@ -123,7 +123,12 @@ zoomPair (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
 
 ----------------------------------------------------------------------
 
+-- | A layer plotting function which is just given the x position and x width
+-- to render the data value of type 'a' into.
 type LayerMapFunc a = Double -> Double -> a -> C.Render ()
+
+-- | A layer plotting function which is given the x position and x width,
+-- and a previously returned value of type 'b'
 type LayerFoldFunc a b = Double -> Double -> b -> a -> C.Render b
 
 data LayerPlot a = LayerMap (LayerMapFunc a)
