@@ -4,16 +4,35 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS -Wall #-}
 ----------------------------------------------------------------------
--- |
--- Module      : Scope.Types
--- Copyright   : Conrad Parker
--- License     : BSD3-style (see LICENSE)
---
--- Maintainer  : Conrad Parker <conrad@metadecks.org>
--- Stability   : unstable
--- Portability : unknown
---
--- Scope types and interfaces
+{- |
+   Module      : Scope.Types
+   Copyright   : Conrad Parker
+   License     : BSD3-style (see LICENSE)
+
+   Maintainer  : Conrad Parker <conrad@metadecks.org>
+   Stability   : unstable
+   Portability : unknown
+
+   Scope types and interfaces
+
+   The coordinate system:
+
+@
+           CanvasX 0.0                       CanvasX 1.0    DataX 1.0
+              |                                 |              |
+ DataX 0.0    V                                 V              V
+    |
+    V          ---------------------------------   <- CanvasY -1.0
+              |                                 |
+    +---------+---------------------------------+--------------+
+    |         |                                 |              |
+    |         |                                 |              |
+    +---------+---------------------------------+--------------+
+              |                                 |
+               ---------------------------------   <- CanvasY -1.0
+@
+
+-}
 ----------------------------------------------------------------------
 
 module Scope.Types (
@@ -63,25 +82,6 @@ class Coordinate a where
     distance :: a -> a -> a
     -- | Translate x by
     translate :: a -> a -> a
-
-{- |
-
-@
-           CanvasX 0.0                       CanvasX 1.0    DataX 1.0
-              |                                 |              |
- DataX 0.0    V                                 V              V
-    |
-    V          ---------------------------------   <- CanvasY -1.0
-              |                                 |
-    +---------+---------------------------------+--------------+
-    |         |                                 |              |
-    |         |                                 |              |
-    +---------+---------------------------------+--------------+
-              |                                 |
-               ---------------------------------   <- CanvasY -1.0
-@
-
--}
 
 newtype ScreenX = ScreenX Double deriving (Eq, Ord, Show)
 newtype ScreenY = ScreenY Double deriving (Eq, Ord, Show)
