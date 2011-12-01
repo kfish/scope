@@ -32,6 +32,7 @@ import qualified Graphics.Rendering.Cairo as C
 import Graphics.Rendering.Cairo.Internal (Render(..))
 import Graphics.Rendering.Cairo.Types (Cairo)
 import qualified Graphics.Rendering.Cairo.Matrix as M
+import qualified System.Random.MWC as MWC
 
 -- import Text.Printf
 
@@ -520,26 +521,43 @@ scopeModifyView :: (View -> View) -> Scope -> Scope
 scopeModifyView f scope = scope{ view = f (view scope) }
 
 ----------------------------------------------------------------------
+-- Random, similar colors
+
+type RGB = (Double, Double, Double)
+
+genColor :: RGB -> Double -> MWC.GenIO -> IO RGB
+genColor (r, g, b) a gen = do
+    let a' = 1.0 - a
+    r' <- MWC.uniformR (0.0, a') gen
+    g' <- MWC.uniformR (0.0, a') gen
+    b' <- MWC.uniformR (0.0, a') gen
+    return (r*a + r', g*a + g', b*a * b')
+
+genColors :: Int -> RGB -> Double -> IO [RGB]
+genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
+
+----------------------------------------------------------------------
 
 layersFromFile :: FilePath -> IO [ScopeLayer]
 layersFromFile path = do
     tracks <- IM.keys . cfSpecs <$> I.fileDriverRandom (iterHeaders standardIdentifiers) path
-    concat <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) tracks
+    colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
+    concat <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) (zip tracks colors)
     where
-        iterLayers trackNo = layers trackNo <$>
+        iterLayers (trackNo, color) = layers trackNo color <$>
             wholeTrackSummaryDouble standardIdentifiers trackNo
 
-        layers :: TrackNo -> Summary Double -> [ScopeLayer]
-        layers trackNo s = [ ScopeLayer (rawLayer trackNo s)
-                           , ScopeLayer (sLayer trackNo s)
-                           ]
+        layers :: TrackNo -> RGB -> Summary Double -> [ScopeLayer]
+        layers trackNo rgb s = [ ScopeLayer (rawLayer trackNo s)
+                               , ScopeLayer (sLayer trackNo rgb s)
+                               ]
 
         rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
         rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
 
-        sLayer :: TrackNo -> Summary Double -> Layer (Summary Double)
-        sLayer trackNo s = Layer path trackNo 600 (enumSummaryDouble 1)
-                               (LayerFold (plotSummary (yRange s) 1.0 0.0 0.0) Nothing)
+        sLayer :: TrackNo -> RGB -> Summary Double -> Layer (Summary Double)
+        sLayer trackNo (r, g, b) s = Layer path trackNo 600 (enumSummaryDouble 1)
+                                         (LayerFold (plotSummary (yRange s) r g b) Nothing)
 
         yRange :: Summary Double -> Double
         yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
