@@ -27,7 +27,6 @@ import Data.List (groupBy)
 import Data.Maybe
 import qualified Data.Iteratee as I
 import Data.ZoomCache.Numeric
-import Data.ZoomCache.Texture
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
 import Graphics.Rendering.Cairo.Internal (Render(..))
@@ -141,7 +140,7 @@ guiMain chan args = do
   drawingArea <- G.drawingAreaNew
 
   let scope = scopeNew drawingArea adj
-  scopeRef <- newIORef (scope { layers = [ScopeLayer textureLayer] })
+  scopeRef <- newIORef scope
 
   mapM_ (modifyIORefM scopeRef . addLayersFromFile) args
   openDialog `G.on` G.response $ myFileOpen scopeRef openDialog
@@ -434,7 +433,7 @@ plotFileLayers :: FilePath -> [ScopeLayer] -> Scope -> C.Render ()
 plotFileLayers path layers scope =
     I.fileDriverRandom (I.joinI $ enumCacheFile identifiers (I.sequence_ is)) path
     where
-        identifiers = standardIdentifiers ++ textureIdentifiers
+        identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
 
 plotLayer :: Scope -> ScopeLayer -> I.Iteratee [Stream] Render ()
@@ -479,28 +478,6 @@ plotLayer scope (ScopeLayer Layer{..}) =
 
         -- | Fractional number of data points visible in view
         viz = fromIntegral dataLength * toDouble (distance viewX1 viewX2)
-
-----------------------------------------------------------------------
--- Texture
-
-textureLayer :: Layer (TimeStamp, TextureSlice)
-textureLayer = Layer texturePath 1 textureSize enumTexture (LayerMap renderTex)
-    where
-        texturePath = "../texture-synthesis/texture.zoom"
-        textureSize = (2^(5::Int))+1
-        texH = 2.0 {- (viewY2 v - viewY1 v)-} / fromIntegral textureSize
-
-        renderTex :: Double -> Double -> (TimeStamp, TextureSlice) -> C.Render ()
-        renderTex x w (_ts, (TextureSlice tex)) = do
-            mapM_ (uncurry (texVal x w)) (zip (iterate (+texH) (-1.0 {- (viewY1 v) -})) tex)
-
-        texVal :: Double -> Double -> Double -> Float -> C.Render ()
-        texVal x w y v = do
-            C.setSourceRGB s s (s*0.9)
-            C.rectangle x y (w+0.01) (texH+0.01)
-            C.fill
-            where
-	        s = (realToFrac v / 4) + 0.75
 
 ----------------------------------------------------------------------
 -- Raw data

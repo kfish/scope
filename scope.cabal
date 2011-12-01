@@ -94,7 +94,6 @@ Executable scope
     iteratee                  >= 0.8.6.0 && < 0.9,
     MonadCatchIO-transformers >  0.2     && < 0.3,
     mtl                       >= 2.0.0.0 && < 3,
-    texture-synthesis         >= 0.1.0.0 && < 0.2.0.0,
     zoom-cache                >= 0.8.0.0 && < 0.9
 
 ------------------------------------------------------------------------
