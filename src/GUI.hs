@@ -96,6 +96,9 @@ guiMain chan args = do
           [(G.stockCancel, G.ResponseCancel), (label, G.ResponseAccept)]
 
   openDialog <- fChooser G.FileChooserActionOpen G.stockOpen
+  demoPath <- My.getDataFileName "demo"
+  G.fileChooserSetCurrentFolder openDialog demoPath
+
   opena `G.on` G.actionActivated $ G.widgetShow openDialog
 
   saveDialog <- fChooser G.FileChooserActionSave G.stockSave
