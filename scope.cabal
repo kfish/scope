@@ -1,6 +1,6 @@
 Name:                scope
 
-Version:             0.4
+Version:             0.5.0.0
 
 Synopsis:            An interactive renderer for plotting time-series data
 
@@ -68,7 +68,7 @@ Library
     iteratee                  >= 0.8.6.0 && < 0.9,
     MonadCatchIO-transformers >  0.2     && < 0.3,
     mtl                       >= 2.0.0.0 && < 3,
-    zoom-cache                >= 0.8.0.0 && < 0.9
+    zoom-cache                >= 0.8.1.0 && < 0.9
 
   Exposed-modules:
     Scope.View
@@ -95,7 +95,7 @@ Executable scope
     MonadCatchIO-transformers >  0.2     && < 0.3,
     mtl                       >= 2.0.0.0 && < 3,
     mwc-random,
-    zoom-cache                >= 0.8.0.0 && < 0.9
+    zoom-cache                >= 0.8.1.0 && < 0.9
 
 ------------------------------------------------------------------------
 -- Git repo
