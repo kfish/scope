@@ -14,7 +14,12 @@ Category:            Development
 
 Cabal-Version:       >= 1.8
 Build-type:          Simple
-Data-Files:          data/actions.ui
+Data-Files:
+  data/actions.ui
+  demo/demo1.zoom
+  demo/demo2.zoom
+  demo/demo3.zoom
+  demo/demo4.zoom
 
 flag splitBase
   description: Use the split-up base package.
