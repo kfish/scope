@@ -34,7 +34,7 @@ import Graphics.Rendering.Cairo.Internal (Render(..))
 import Graphics.Rendering.Cairo.Types (Cairo)
 import qualified Graphics.Rendering.Cairo.Matrix as M
 
-import Text.Printf
+-- import Text.Printf
 
 import Paths_scope as My
 import Scope.View
@@ -335,9 +335,9 @@ scroll ref = do
 
 keyDown :: IORef Scope -> G.EventM G.EKey ()
 keyDown ref = do
-    n <- G.eventKeyName
     v <- G.eventKeyVal
-    liftIO . putStrLn $ printf "Key %s (%d) pressed" n v
+    -- n <- G.eventKeyName
+    -- liftIO . putStrLn $ printf "Key %s (%d) pressed" n v
     liftIO $ case v of
         XK_Home -> scopeAlign ref (CanvasX 0.0) (DataX 0.0)
         XK_End  -> scopeAlign ref (CanvasX 1.0) (DataX 1.0)
@@ -345,8 +345,7 @@ keyDown ref = do
         XK_Down -> scopeZoomOut ref 2.0
         XK_Left  -> scopeMoveRight ref
         XK_Right -> scopeMoveLeft ref
-        XK_Page_Up -> putStrLn "XK_PageUp"
-        _ -> putStrLn "Random key"
+        _ -> return ()
 
 ----------------------------------------------------------------
 
