@@ -155,6 +155,14 @@ zoomPair (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
         oldW = toDouble $ distance x1 x2
         newW = min 1.0 (oldW * mult)
 
+mkTransform :: Coordinate a => (a, a) -> (a, a) -> Transform a
+mkTransform (old1, old2) (new1, new2) = Transform m b
+    where
+        oldW = distance old2 old1
+        newW = distance new2 new1
+        m = toDouble oldW / toDouble newW
+        b = distance new1 old1
+
 ----------------------------------------------------------------------
 
 -- | A layer plotting function which is just given the x position and x width
