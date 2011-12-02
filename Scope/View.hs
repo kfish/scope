@@ -14,8 +14,10 @@
 ----------------------------------------------------------------------
 
 module Scope.View (
+      timeStampToData
+
     -- * Motion, zooming
-      viewAlign
+    , viewAlign
     , viewMoveTo
     , viewZoomOutOn
 
@@ -26,6 +28,7 @@ module Scope.View (
 ) where
 
 import Data.Maybe (fromJust)
+import Data.ZoomCache
 
 import Scope.Types
 
@@ -34,6 +37,12 @@ import Scope.Types
 canvasToData :: View -> CanvasX -> DataX
 canvasToData View{..} (CanvasX cX) = translate viewX1 $
     DataX (cX * toDouble (distance viewX1 viewX2))
+
+timeStampToData :: Scope -> TimeStamp -> Maybe DataX
+timeStampToData Scope{..} (TS ts) = fmap tsToData bounds
+    where
+        tsToData :: (TimeStamp, TimeStamp) -> DataX
+        tsToData (TS t1, TS t2) = DataX (ts - t1 / t2 - t1)
 
 viewSetEnds :: DataX -> DataX -> View -> View
 viewSetEnds x1 x2 v@View{..} = v { viewX1 = x1, viewX2 = x2 }

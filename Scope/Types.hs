@@ -45,6 +45,10 @@ module Scope.Types (
     , DataX(..)
     , DataY(..)
 
+    , Transform(..)
+    , mkTransform
+    , mkTSDataTransform
+
     , restrictPair
     , restrictPair01
     , translatePair
@@ -53,6 +57,7 @@ module Scope.Types (
     -- * Scope
     , Scope(..)
     , scopeNew
+    , scopeTransform
 
     -- * Views
     , View(..)
@@ -65,6 +70,7 @@ module Scope.Types (
     , ScopeLayer(..)
 ) where
 
+import Control.Applicative ((<$>))
 import Data.Maybe
 import Data.Iteratee (Enumeratee)
 import Data.ZoomCache
@@ -163,6 +169,14 @@ mkTransform (old1, old2) (new1, new2) = Transform m b
         m = toDouble oldW / toDouble newW
         b = distance new1 old1
 
+mkTSDataTransform :: (TimeStamp, TimeStamp) -> (TimeStamp, TimeStamp) -> Transform DataX
+mkTSDataTransform (old1, old2) (new1, new2) = Transform m b
+    where
+        oldW = distance old2 old1
+        newW = distance new2 new1
+        m = toDouble oldW / toDouble newW
+        b = fromDouble $ toDouble (distance new1 old1) / toDouble newW
+
 ----------------------------------------------------------------------
 
 -- | A layer plotting function which is just given the x position and x width
@@ -211,7 +225,17 @@ scopeNew c adj = Scope {
     , layers = []
     }
 
+scopeTransform :: Transform DataX -> Scope -> Scope
+scopeTransform tf scope@Scope{..} = scope { view = viewTransform tf view }
+
 viewInit :: G.DrawingArea -> G.Adjustment -> View
 viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing
+
+viewTransform :: Transform DataX -> View -> View
+viewTransform tf v@View{..} = v {
+      viewX1 = transform tf viewX1
+    , viewX2 = transform tf viewX2
+    , dragDX = transform tf <$> dragDX
+    }
 
 ----------------------------------------------------------------------

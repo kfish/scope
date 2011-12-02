@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances #-} -- TimeStampable
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS -Wall -fno-warn-unused-do-bind -fno-warn-orphans #-}
@@ -422,6 +423,17 @@ mapRender f = Render . f . runRender
 
 ----------------------------------------------------------------
 
+class TimeStampable a where
+    timeStamp :: a -> TimeStamp
+
+instance TimeStampable (TimeStamp, a) where
+    timeStamp (ts, _) = ts
+
+instance TimeStampable (Summary a) where
+    timeStamp = summaryEntry
+
+----------------------------------------------------------------
+
 plotLayers :: Scope -> C.Render ()
 plotLayers scope = mapM_ f layersByFile
     where
@@ -576,8 +588,15 @@ mergeBounds (Just (a1, a2)) (Just (b1, b2)) = Just (min a1 b1, max a2 b2)
 addLayersFromFile :: FilePath -> Scope -> IO Scope
 addLayersFromFile path scope = do
     (newLayers, newBounds) <- layersFromFile path
-    return $ scope { layers = layers scope ++ newLayers
-                   , bounds = mergeBounds (bounds scope) newBounds}
+    let oldBounds = bounds scope
+        t = case (oldBounds, newBounds) of
+                (Just ob, Just nb) -> if ob == nb
+                                          then id
+                                          else scopeTransform (mkTSDataTransform ob nb)
+                _ -> id
+    return $ (t scope) { layers = layers scope ++ newLayers
+                       , bounds = mergeBounds oldBounds newBounds
+                       }
 
 modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
 modifyIORefM ref f = do
