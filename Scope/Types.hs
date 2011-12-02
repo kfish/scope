@@ -122,6 +122,13 @@ instance Coordinate DataX where
     translate (DataX t) (DataX x)  = DataX (translate t x)
     transform (Transform m (DataX b)) (DataX x) = DataX (transform (Transform m b) x)
 
+instance Coordinate TimeStamp where
+    fromDouble d = TS d
+    toDouble (TS d) = d
+    distance (TS x1) (TS x2) = TS (distance x1 x2)
+    translate (TS t) (TS x)  = TS (translate t x)
+    transform (Transform m (TS b)) (TS x) = TS (transform (Transform m b) x)
+
 translatePair :: Coordinate a => a -> (a, a) -> (a, a)
 translatePair t (x1, x2) = (translate t x1, translate t x2)
 
