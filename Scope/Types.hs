@@ -190,6 +190,7 @@ data ScopeLayer = forall a . ScopeLayer (Layer a)
 
 data Scope = Scope
     { view   :: View
+    , bounds :: Maybe (TimeStamp, TimeStamp)
     , layers :: [ScopeLayer]
     }
 
@@ -206,6 +207,7 @@ data View = View
 scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
 scopeNew c adj = Scope {
       view = viewInit c adj
+    , bounds = Nothing
     , layers = []
     }
 

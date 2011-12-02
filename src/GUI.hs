@@ -538,19 +538,25 @@ genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
 
 ----------------------------------------------------------------------
 
-layersFromFile :: FilePath -> IO [ScopeLayer]
+layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
 layersFromFile path = do
     tracks <- IM.keys . cfSpecs <$> I.fileDriverRandom (iterHeaders standardIdentifiers) path
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
-    concat <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) (zip tracks colors)
+    foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) (zip tracks colors)
     where
+        merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+        merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, mergeBounds bs1 bs2)
+
         iterLayers (trackNo, color) = layers trackNo color <$>
             wholeTrackSummaryDouble standardIdentifiers trackNo
 
-        layers :: TrackNo -> RGB -> Summary Double -> [ScopeLayer]
-        layers trackNo rgb s = [ ScopeLayer (rawLayer trackNo s)
-                               , ScopeLayer (sLayer trackNo rgb s)
-                               ]
+        layers :: TrackNo -> RGB -> Summary Double -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+        layers trackNo rgb s = ([ ScopeLayer (rawLayer trackNo s)
+                                , ScopeLayer (sLayer trackNo rgb s)
+                                ]
+                               , Just (summaryEntry s, summaryExit s))
 
         rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
         rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
@@ -562,10 +568,16 @@ layersFromFile path = do
         yRange :: Summary Double -> Double
         yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
 
+mergeBounds :: Ord a => Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
+mergeBounds a               Nothing         = a
+mergeBounds Nothing         b               = b
+mergeBounds (Just (a1, a2)) (Just (b1, b2)) = Just (min a1 b1, max a2 b2)
+
 addLayersFromFile :: FilePath -> Scope -> IO Scope
 addLayersFromFile path scope = do
-    newLayers <- layersFromFile path
-    return $ scope { layers = layers scope ++ newLayers }
+    (newLayers, newBounds) <- layersFromFile path
+    return $ scope { layers = layers scope ++ newLayers
+                   , bounds = mergeBounds (bounds scope) newBounds}
 
 modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
 modifyIORefM ref f = do
