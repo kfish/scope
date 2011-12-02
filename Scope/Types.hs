@@ -74,6 +74,8 @@ import qualified Graphics.UI.Gtk as G
 
 ----------------------------------------------------------------------
 
+data Transform a = Transform { m :: Double, b :: a }
+
 class Coordinate a where
     fromDouble :: Double -> a
     toDouble :: a -> Double
@@ -82,6 +84,8 @@ class Coordinate a where
     distance :: a -> a -> a
     -- | Translate x by
     translate :: a -> a -> a
+
+    transform :: Transform a -> a -> a
 
 newtype ScreenX = ScreenX Double deriving (Eq, Ord, Show)
 newtype ScreenY = ScreenY Double deriving (Eq, Ord, Show)
@@ -95,24 +99,28 @@ instance Coordinate Double where
     toDouble = id
     distance x1 x2 = x2 - x1
     translate t x = x + t
+    transform Transform{..} x = m * x + b
 
 instance Coordinate ScreenX where
     fromDouble d = ScreenX d
     toDouble (ScreenX d) = d
     distance (ScreenX x1) (ScreenX x2) = ScreenX (distance x1 x2)
     translate (ScreenX t) (ScreenX x)  = ScreenX (translate t x)
+    transform (Transform m (ScreenX b)) (ScreenX x) = ScreenX (transform (Transform m b) x)
 
 instance Coordinate CanvasX where
     fromDouble d = CanvasX d
     toDouble (CanvasX d) = d
     distance (CanvasX x1) (CanvasX x2) = CanvasX (distance x1 x2)
     translate (CanvasX t) (CanvasX x)  = CanvasX (translate t x)
+    transform (Transform m (CanvasX b)) (CanvasX x) = CanvasX (transform (Transform m b) x)
 
 instance Coordinate DataX where
     fromDouble d = DataX d
     toDouble (DataX d) = d
     distance (DataX x1) (DataX x2) = DataX (distance x1 x2)
     translate (DataX t) (DataX x)  = DataX (translate t x)
+    transform (Transform m (DataX b)) (DataX x) = DataX (transform (Transform m b) x)
 
 translatePair :: Coordinate a => a -> (a, a) -> (a, a)
 translatePair t (x1, x2) = (translate t x1, translate t x2)
