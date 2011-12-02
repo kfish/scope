@@ -483,7 +483,7 @@ plotLayer scope (ScopeLayer Layer{..}) =
 ----------------------------------------------------------------------
 -- Raw data
 
-plotRaw :: Double -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
+plotRaw :: Double -> LayerFoldFunc (SampleOffset, Double) (Maybe Double)
 plotRaw yR x w Nothing (ts, y) = plotRaw yR x w (Just y) (ts, y)
 plotRaw yR x w (Just y0) (_ts, y) = do
     C.moveTo x     y0
@@ -552,7 +552,7 @@ layersFromFile path = do
                                , ScopeLayer (sLayer trackNo rgb s)
                                ]
 
-        rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
+        rawLayer :: TrackNo -> Summary Double -> Layer (SampleOffset, Double)
         rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
 
         sLayer :: TrackNo -> RGB -> Summary Double -> Layer (Summary Double)
