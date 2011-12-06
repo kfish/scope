@@ -571,11 +571,12 @@ layersFromFile path = do
                                , Just (summaryEntry s, summaryExit s))
 
         rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
-        rawLayer trackNo s = Layer path trackNo 5000 enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
+        rawLayer trackNo s = Layer path trackNo (summaryEntry s) (summaryExit s)
+            enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
 
         sLayer :: TrackNo -> RGB -> Summary Double -> Layer (Summary Double)
-        sLayer trackNo (r, g, b) s = Layer path trackNo 600 (enumSummaryDouble 1)
-                                         (LayerFold (plotSummary (yRange s) r g b) Nothing)
+        sLayer trackNo (r, g, b) s = Layer path trackNo (summaryEntry s) (summaryExit s)
+            (enumSummaryDouble 1) (LayerFold (plotSummary (yRange s) r g b) Nothing)
 
         yRange :: Summary Double -> Double
         yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))

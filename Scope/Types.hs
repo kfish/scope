@@ -193,12 +193,13 @@ data LayerPlot a = LayerMap (LayerMapFunc a)
 data Layer a = Layer
     { filename :: FilePath
     , trackNo :: TrackNo
-    , dataLength :: Int
+    , startTime :: TimeStamp
+    , endTime :: TimeStamp
     , convEnee :: Enumeratee [Stream] [a] C.Render ()
     , plotter :: LayerPlot a
     }
 
-data ScopeLayer = forall a . ScopeLayer (Layer a)
+data ScopeLayer = forall a . Timestampable a => ScopeLayer (Layer a)
 
 ----------------------------------------------------------------------
 

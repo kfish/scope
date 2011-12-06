@@ -14,7 +14,14 @@
 ----------------------------------------------------------------------
 
 module Scope.View (
+    -- * Coordinate conversions
       timeStampToData
+    , dataToTimeStamp
+    , timeStampToCanvas
+
+    , viewStartTime
+    , viewEndTime
+    , viewDuration
 
     -- * Motion, zooming
     , viewAlign
@@ -42,7 +49,37 @@ timeStampToData :: Scope -> TimeStamp -> Maybe DataX
 timeStampToData Scope{..} (TS ts) = fmap tsToData bounds
     where
         tsToData :: (TimeStamp, TimeStamp) -> DataX
-        tsToData (TS t1, TS t2) = DataX (ts - t1 / t2 - t1)
+        tsToData (TS t1, TS t2) = DataX $ ts - t1 / (t2 - t1)
+
+dataToTimeStamp :: Scope -> DataX -> Maybe TimeStamp
+dataToTimeStamp Scope{..} (DataX dX) = fmap dataToTS bounds
+    where
+        dataToTS :: (TimeStamp, TimeStamp) -> TimeStamp
+        dataToTS (TS t1, TS t2) = TS $ t1 + dX * (t2 - t1)
+
+timeStampToCanvas :: Scope -> TimeStamp -> CanvasX
+timeStampToCanvas scope ts = CanvasX $
+    toDouble (distance vt1 ts) / toDouble (distance vt1 vt2)
+    where
+        v = view scope
+        vt1 = fromJust $ dataToTimeStamp scope (viewX1 v)
+        vt2 = fromJust $ dataToTimeStamp scope (viewX2 v)
+
+----------------------------------------------------------------------
+
+viewStartTime :: Scope -> View -> Maybe TimeStamp
+viewStartTime scope View{..} = dataToTimeStamp scope viewX1
+
+viewEndTime :: Scope -> View -> Maybe TimeStamp
+viewEndTime scope View{..} = dataToTimeStamp scope viewX2
+
+viewDuration :: Scope -> View -> Maybe TimeStampDiff
+viewDuration scope view =
+    case (viewStartTime scope view, viewEndTime scope view) of
+        (Just s, Just e) -> Just $ timeStampDiff e s
+        _                -> Nothing
+
+----------------------------------------------------------------------
 
 viewSetEnds :: DataX -> DataX -> View -> View
 viewSetEnds x1 x2 v@View{..} = v { viewX1 = x1, viewX2 = x2 }
