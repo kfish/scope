@@ -198,7 +198,7 @@ myFileOpen scopeRef fcdialog response = do
   case response of
     G.ResponseAccept -> do
         Just filename <- G.fileChooserGetFilename fcdialog
-        scopeModifyMRedraw scopeRef (addLayersFromFile filename)
+        scopeModifyMUpdate scopeRef (addLayersFromFile filename)
     _ -> return ()
   G.widgetHide fcdialog
 
@@ -262,6 +262,14 @@ scopeModifyMRedraw :: IORef Scope -> (Scope -> IO Scope) -> IO ()
 scopeModifyMRedraw ref f = do
     modifyIORefM ref f
     G.widgetQueueDraw =<< canvas . view <$> readIORef ref
+
+scopeModifyMUpdate :: IORef Scope -> (Scope -> IO Scope) -> IO ()
+scopeModifyMUpdate ref f = do
+    modifyIORefM ref f
+    View{..} <- view <$> readIORef ref
+    G.adjustmentSetValue adj (toDouble viewX1)
+    G.adjustmentSetPageSize adj $ toDouble (distance viewX1 viewX2)
+    G.widgetQueueDraw canvas
 
 scopeModifyUpdate :: IORef Scope -> (Scope -> Scope) -> IO ()
 scopeModifyUpdate ref f = do
