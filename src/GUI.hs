@@ -258,11 +258,6 @@ scopeZoomOutOn :: IORef Scope -> CanvasX -> Double -> IO ()
 scopeZoomOutOn ref focus mult =
     scopeModifyUpdate ref (scopeModifyView (viewZoomOutOn focus mult))
 
-scopeModifyMRedraw :: IORef Scope -> (Scope -> IO Scope) -> IO ()
-scopeModifyMRedraw ref f = do
-    modifyIORefM ref f
-    G.widgetQueueDraw =<< canvas . view <$> readIORef ref
-
 scopeModifyMUpdate :: IORef Scope -> (Scope -> IO Scope) -> IO ()
 scopeModifyMUpdate ref f = do
     modifyIORefM ref f
