@@ -27,6 +27,7 @@ import Data.IORef
 import Data.List (groupBy)
 import Data.Maybe
 import qualified Data.Iteratee as I
+import qualified Data.ListLike as LL
 import Data.ZoomCache.Numeric
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
@@ -453,44 +454,59 @@ plotLayer :: Scope -> ScopeLayer -> I.Iteratee [Stream] Render ()
 plotLayer scope (ScopeLayer Layer{..}) =
     I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ foldData
     where
-        View{..} = view scope
+        v@View{..} = view scope
 
         foldData = do
-            I.drop skipLength
-            I.joinI . I.take visibleLength $ render plotter
+            dropWhileB (before (viewStartTime scope v))
+            I.joinI . I.takeWhileE (before (viewEndTime scope v)) $ render plotter
 
         render (LayerMap f) = do
-            I.foldM renderMap canvasX0
-            return ()
+            d0'm <- I.tryHead
+            case d0'm of
+                Just d0 -> I.foldM renderMap (toX d0) >> return ()
+                Nothing -> return ()
             where
-                renderMap x d = do
-                    f x stepWidth d
-                    return (x + stepWidth)
+                renderMap x0 d = do
+                    let x = toX d
+                    f x0 (x-x0) d
+                    return x
         render (LayerFold f b00) = do
-            I.foldM renderFold (canvasX0, b00)
-            return ()
+            d0'm <- I.tryHead
+            case d0'm of
+                Just d0 -> I.foldM renderFold (toX d0, b00) >> return ()
+                Nothing -> return ()
             where
-                renderFold (x, b0) d = do
-                    b <- f x stepWidth b0 d
-                    return (x + stepWidth, b)
+                renderFold (x0, b0) d = do
+                    let x = toX d
+                    b <- f x0 (x-x0) b0 d
+                    return (x, b)
 
-        -- | Canvas X coordinate of first data point
-        canvasX0 = (fromIntegral skipLength - skip) * stepWidth
+        toX :: Timestampable a => a -> Double
+        toX = toDouble . timeStampToCanvas scope . fromJust . timestamp
 
-        -- | Count of data points to drop before rendering
-        skipLength = floor skip
+-- |Skip all elements while the predicate is true, but also return the last false element
+--
+-- The analogue of @List.dropWhile@
+dropWhileB :: (Monad m, LL.ListLike s el) => (el -> Bool) -> I.Iteratee s m ()
+dropWhileB p = I.liftI step
+  where
+    step (I.Chunk str)
+      | LL.null left = I.liftI step
+      | otherwise    = I.idone () (I.Chunk left)
+      where
+        left = llDropWhileB p str
+    step stream      = I.idone () stream
+{-# INLINE dropWhileB #-}
 
-        -- | DataX coordinate of start of view
-        skip = fromIntegral dataLength * toDouble viewX1
-
-        -- | Count of data points visible in view
-        visibleLength = ceiling viz + 2
-
-        -- | Canvas x length per data point
-        stepWidth = 1.0 / viz
-
-        -- | Fractional number of data points visible in view
-        viz = fromIntegral dataLength * toDouble (distance viewX1 viewX2)
+{- | Drops all elements form the start of the list that satisfy the
+       function. -}
+llDropWhileB :: LL.ListLike full item => (item -> Bool) -> full -> full
+llDropWhileB = dw LL.empty
+    where
+        dw prev func l
+            | LL.null l = LL.empty
+            | func (LL.head l) = dw (LL.take 1 l) func (LL.tail l)
+            | otherwise = LL.append prev l
 
 ----------------------------------------------------------------------
 -- Raw data
