@@ -98,7 +98,7 @@ viewMoveTo :: Double -> View -> View
 viewMoveTo val v@View{..} = viewSetEnds newX1' newX2' v
     where
         (newX1', newX2') = restrictPair01 .
-            translatePair (distance viewX1 (DataX val)) $
+            translateRange (distance viewX1 (DataX val)) $
             (viewX1, viewX2)
 
 viewZoomOutOn :: CanvasX -> Double -> View -> View

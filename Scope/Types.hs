@@ -51,7 +51,7 @@ module Scope.Types (
 
     , restrictPair
     , restrictPair01
-    , translatePair
+    , translateRange
     , zoomPair
 
     -- * Scope
@@ -135,8 +135,8 @@ instance Coordinate TimeStamp where
     translate (TS t) (TS x)  = TS (translate t x)
     transform (Transform m (TS b)) (TS x) = TS (transform (Transform m b) x)
 
-translatePair :: Coordinate a => a -> (a, a) -> (a, a)
-translatePair t (x1, x2) = (translate t x1, translate t x2)
+translateRange :: Coordinate a => a -> (a, a) -> (a, a)
+translateRange t (x1, x2) = (translate t x1, translate t x2)
 
 -- | Restrict a window to within a given range
 restrictPair :: (Ord a, Coordinate a) => (a, a) -> (a, a) -> (a, a)
