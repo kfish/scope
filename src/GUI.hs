@@ -578,7 +578,7 @@ layersFromFile path = do
         merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, mergeBounds bs1 bs2)
+        merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, unionBounds bs1 bs2)
 
         iterLayers (trackNo, color) = layers trackNo color <$>
             wholeTrackSummaryDouble standardIdentifiers trackNo
@@ -600,16 +600,16 @@ layersFromFile path = do
         yRange :: Summary Double -> Double
         yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
 
-mergeBounds :: Ord a => Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
-mergeBounds a               Nothing         = a
-mergeBounds Nothing         b               = b
-mergeBounds (Just (a1, a2)) (Just (b1, b2)) = Just (min a1 b1, max a2 b2)
+unionBounds :: Ord a => Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
+unionBounds a         Nothing   = a
+unionBounds Nothing   b         = b
+unionBounds (Just r1) (Just r2) = Just (unionRange r1 r2)
 
 addLayersFromFile :: FilePath -> Scope -> IO Scope
 addLayersFromFile path scope = do
     (newLayers, newBounds) <- layersFromFile path
     let oldBounds = bounds scope
-        mb = mergeBounds oldBounds newBounds
+        mb = unionBounds oldBounds newBounds
         t = case oldBounds of
                 Just ob -> if oldBounds == mb
                                then id

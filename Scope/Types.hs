@@ -49,9 +49,10 @@ module Scope.Types (
     , mkTransform
     , mkTSDataTransform
 
+    , translateRange
+    , unionRange
     , restrictRange
     , restrictRange01
-    , translateRange
     , zoomRange
 
     -- * Scope
@@ -137,6 +138,9 @@ instance Coordinate TimeStamp where
 
 translateRange :: Coordinate a => a -> (a, a) -> (a, a)
 translateRange t (x1, x2) = (translate t x1, translate t x2)
+
+unionRange :: Ord a => (a, a) -> (a, a) -> (a, a)
+unionRange (a1, a2) (b1, b2) = (min a1 b1, max a2 b2)
 
 -- | Restrict a window to within a given range
 restrictRange :: (Ord a, Coordinate a) => (a, a) -> (a, a) -> (a, a)
