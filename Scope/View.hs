@@ -92,19 +92,19 @@ viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX
         DataX vW = distance viewX1 viewX2 -- current width of view window
         newX1 = max 0 $ dx - (cx * vW)
         newX2 = newX1 + vW
-        (newX1', newX2') = restrictPair01 (newX1, newX2)
+        (newX1', newX2') = restrictRange01 (newX1, newX2)
 
 viewMoveTo :: Double -> View -> View
 viewMoveTo val v@View{..} = viewSetEnds newX1' newX2' v
     where
-        (newX1', newX2') = restrictPair01 .
+        (newX1', newX2') = restrictRange01 .
             translateRange (distance viewX1 (DataX val)) $
             (viewX1, viewX2)
 
 viewZoomOutOn :: CanvasX -> Double -> View -> View
 viewZoomOutOn focus mult v@View{..} = viewSetEnds newX1 newX2' v
     where
-        (newX1, newX2') = restrictPair01 $
+        (newX1, newX2') = restrictRange01 $
             zoomPair focus mult (viewX1, viewX2)
 
 viewButtonDown :: CanvasX -> View -> View

@@ -49,8 +49,8 @@ module Scope.Types (
     , mkTransform
     , mkTSDataTransform
 
-    , restrictPair
-    , restrictPair01
+    , restrictRange
+    , restrictRange01
     , translateRange
     , zoomPair
 
@@ -139,8 +139,8 @@ translateRange :: Coordinate a => a -> (a, a) -> (a, a)
 translateRange t (x1, x2) = (translate t x1, translate t x2)
 
 -- | Restrict a window to within a given range
-restrictPair :: (Ord a, Coordinate a) => (a, a) -> (a, a) -> (a, a)
-restrictPair (rangeX1, rangeX2) (x1, x2)
+restrictRange :: (Ord a, Coordinate a) => (a, a) -> (a, a) -> (a, a)
+restrictRange (rangeX1, rangeX2) (x1, x2)
     | w >= rW      = (rangeX1, rangeX2)
     | x1 < rangeX1 = (rangeX1, translate rangeX1 w)
     | x2 > rangeX2 = (x1', rangeX2)
@@ -150,8 +150,8 @@ restrictPair (rangeX1, rangeX2) (x1, x2)
         w = distance x1 x2
         x1' = distance w rangeX2
 
-restrictPair01 :: (Ord a, Coordinate a) => (a, a) -> (a, a)
-restrictPair01 = restrictPair (fromDouble 0.0, fromDouble 1.0)
+restrictRange01 :: (Ord a, Coordinate a) => (a, a) -> (a, a)
+restrictRange01 = restrictRange (fromDouble 0.0, fromDouble 1.0)
 
 zoomPair :: Coordinate a => CanvasX -> Double -> (a, a) -> (a, a)
 zoomPair (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
