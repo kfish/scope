@@ -172,8 +172,8 @@ mkTransform (old1, old2) (new1, new2) = Transform m b
 mkTSDataTransform :: (TimeStamp, TimeStamp) -> (TimeStamp, TimeStamp) -> Transform DataX
 mkTSDataTransform (old1, old2) (new1, new2) = Transform m b
     where
-        oldW = distance old2 old1
-        newW = distance new2 new1
+        oldW = distance old1 old2
+        newW = distance new1 new2
         m = toDouble oldW / toDouble newW
         b = fromDouble $ toDouble (distance new1 old1) / toDouble newW
 

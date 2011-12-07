@@ -609,13 +609,14 @@ addLayersFromFile :: FilePath -> Scope -> IO Scope
 addLayersFromFile path scope = do
     (newLayers, newBounds) <- layersFromFile path
     let oldBounds = bounds scope
-        t = case (oldBounds, newBounds) of
-                (Just ob, Just nb) -> if ob == nb
-                                          then id
-                                          else scopeTransform (mkTSDataTransform ob nb)
+        mb = mergeBounds oldBounds newBounds
+        t = case oldBounds of
+                Just ob -> if oldBounds == mb
+                               then id
+                               else scopeTransform (mkTSDataTransform ob (fromJust mb))
                 _ -> id
     return $ (t scope) { layers = layers scope ++ newLayers
-                       , bounds = mergeBounds oldBounds newBounds
+                       , bounds = mb
                        }
 
 modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
