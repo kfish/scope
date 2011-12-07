@@ -27,7 +27,6 @@ import Data.IORef
 import Data.List (groupBy)
 import Data.Maybe
 import qualified Data.Iteratee as I
-import qualified Data.ListLike as LL
 import Data.ZoomCache.Numeric
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
@@ -460,7 +459,7 @@ plotLayer scope (ScopeLayer Layer{..}) =
         v@View{..} = view scope
 
         foldData = do
-            dropWhileB (before (viewStartTime scope v))
+            seekTimeStamp (viewStartTime scope v)
             I.joinI . I.takeWhileE (before (viewEndTime scope v)) $ render plotter
 
         render (LayerMap f) = do
@@ -486,30 +485,6 @@ plotLayer scope (ScopeLayer Layer{..}) =
 
         toX :: Timestampable a => a -> Double
         toX = toDouble . timeStampToCanvas scope . fromJust . timestamp
-
--- |Skip all elements while the predicate is true, but also return the last false element
---
--- The analogue of @List.dropWhile@
-dropWhileB :: (Monad m, LL.ListLike s el) => (el -> Bool) -> I.Iteratee s m ()
-dropWhileB p = I.liftI step
-  where
-    step (I.Chunk str)
-      | LL.null left = I.liftI step
-      | otherwise    = I.idone () (I.Chunk left)
-      where
-        left = llDropWhileB p str
-    step stream      = I.idone () stream
-{-# INLINE dropWhileB #-}
-
-{- | Drops all elements form the start of the list that satisfy the
-       function. -}
-llDropWhileB :: LL.ListLike full item => (item -> Bool) -> full -> full
-llDropWhileB = dw LL.empty
-    where
-        dw prev func l
-            | LL.null l = LL.empty
-            | func (LL.head l) = dw (LL.take 1 l) func (LL.tail l)
-            | otherwise = LL.append prev l
 
 ----------------------------------------------------------------------
 -- Raw data
