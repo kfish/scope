@@ -105,7 +105,7 @@ viewZoomOutOn :: CanvasX -> Double -> View -> View
 viewZoomOutOn focus mult v@View{..} = viewSetEnds newX1 newX2' v
     where
         (newX1, newX2') = restrictRange01 $
-            zoomPair focus mult (viewX1, viewX2)
+            zoomRange focus mult (viewX1, viewX2)
 
 viewButtonDown :: CanvasX -> View -> View
 viewButtonDown cX v = v { dragDX = Just (canvasToData v cX) }

@@ -52,7 +52,7 @@ module Scope.Types (
     , restrictRange
     , restrictRange01
     , translateRange
-    , zoomPair
+    , zoomRange
 
     -- * Scope
     , Scope(..)
@@ -153,8 +153,8 @@ restrictRange (rangeX1, rangeX2) (x1, x2)
 restrictRange01 :: (Ord a, Coordinate a) => (a, a) -> (a, a)
 restrictRange01 = restrictRange (fromDouble 0.0, fromDouble 1.0)
 
-zoomPair :: Coordinate a => CanvasX -> Double -> (a, a) -> (a, a)
-zoomPair (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
+zoomRange :: Coordinate a => CanvasX -> Double -> (a, a) -> (a, a)
+zoomRange (CanvasX focus) mult (x1, x2) = (translate off1 x1, translate off2 x2)
     where
         off1 = fromDouble $ (oldW - newW) * focus
         off2 = fromDouble $ (newW - oldW) * (1.0 - focus)
