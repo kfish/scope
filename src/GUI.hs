@@ -447,7 +447,10 @@ plotLayers scope = mapM_ f layersByFile
 
 plotFileLayers :: FilePath -> [ScopeLayer] -> Scope -> C.Render ()
 plotFileLayers path layers scope =
-    I.fileDriverRandom (I.joinI $ enumCacheFile identifiers (I.sequence_ is)) path
+    flip I.fileDriverRandom path $ do
+        I.joinI $ enumCacheFile identifiers $ do
+            seekTimeStamp (viewStartTime scope (view scope))
+            I.sequence_ is
     where
         identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
@@ -459,7 +462,6 @@ plotLayer scope (ScopeLayer Layer{..}) =
         v@View{..} = view scope
 
         foldData = do
-            seekTimeStamp (viewStartTime scope v)
             I.joinI . I.takeWhileE (before (viewEndTime scope v)) $ render plotter
 
         render (LayerMap f) = do
