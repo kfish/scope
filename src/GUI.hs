@@ -503,9 +503,14 @@ plotRaw yR x w (Just y0) (_ts, y) = do
 
 plotSummary :: Double -> Double -> Double -> Double
             -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
-plotSummary dYRange r g b x w Nothing s =
-    plotSummary dYRange r g b x w (Just s) s
-plotSummary dYRange r g b x w (Just s0) s = do
+plotSummary dYRange = plotSummary1 (\v -> v * 4.0 / dYRange)
+
+-- | Plot one numeric summary
+plotSummary1 :: (Double -> Double) -> Double -> Double -> Double
+            -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
+plotSummary1 y r g b x w Nothing s =
+    plotSummary1 y r g b x w (Just s) s
+plotSummary1 y r g b x w (Just s0) s = do
     C.setSourceRGBA r g b 0.3
     C.moveTo x     (y (numMax sd0))
     C.lineTo (x+w) (y (numMax sd))
@@ -521,7 +526,6 @@ plotSummary dYRange r g b x w (Just s0) s = do
     where
         sd0 = summaryData s0
         sd = summaryData s
-        y v = v * 4.0 / dYRange
 
 ----------------------------------------------------------------------
 
