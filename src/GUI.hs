@@ -36,8 +36,6 @@ import Graphics.Rendering.Cairo.Types (Cairo)
 import qualified Graphics.Rendering.Cairo.Matrix as M
 import qualified System.Random.MWC as MWC
 
--- import Text.Printf
-
 import Paths_scope as My
 import Scope.View
 import Scope.Types
@@ -493,11 +491,27 @@ plotLayer scope (ScopeLayer Layer{..}) =
 -- Raw data
 
 plotRaw :: Double -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
-plotRaw yR x w Nothing (ts, y) = plotRaw yR x w (Just y) (ts, y)
-plotRaw yR x w (Just y0) (_ts, y) = do
+plotRaw yR = plotRaw1 (\y -> y * 2.0 / yR)
+
+plotRawList :: Double -> LayerFoldFunc (TimeStamp, [Double]) (Maybe [Double])
+plotRawList yRange x w Nothing (ts, ys) = plotRawList yRange x w (Just ys) (ts, ys)
+plotRawList yRange x w (Just ys0) (ts, ys) =
+    Just <$> mapM f (zip3 (map yFunc [0..]) ys0 ys)
+    where
+        l = length ys
+        yStep = 2.0 / fromIntegral l
+        yFunc n v = (-1.0) + (n * yStep) + ((0.5) * yStep) + (v * yStep / yRange)
+        f :: ((Double -> Double), Double, Double) -> C.Render Double
+        f (y, s0, s) = fromJust <$> plotRaw1 y x w (Just s0) (ts, s)
+
+plotRaw1 :: (Double -> Double) -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
+plotRaw1 f x w Nothing (ts, y) = plotRaw1 f x w (Just y) (ts, y)
+plotRaw1 f x w (Just y0) (_ts, y) = do
+    let y' = f y
     C.moveTo x     y0
-    C.lineTo (x+w) (y * 2.0 {- (viewY2 v - viewY1 v)-} / yR)
-    return (Just y)
+    C.lineTo (x+w) y'
+    C.stroke
+    return (Just y')
 
 ----------------------------------------------------------------------
 -- Summary data
@@ -510,14 +524,14 @@ plotSummaryList :: Double -> Double -> Double -> Double
                 -> LayerFoldFunc [Summary Double] (Maybe [Summary Double])
 plotSummaryList dYRange r g b x w Nothing ss =
     plotSummaryList dYRange r g b x w (Just ss) ss
-plotSummaryList dYRange r g b w x (Just ss0) ss = do
+plotSummaryList dYRange r g b x w (Just ss0) ss = do
     Just <$> mapM f (zip3 (map yFunc [0..]) ss0 ss)
     where
         l = length ss
         yStep = 2.0 / fromIntegral l
         yFunc n v = (-1.0) + (n * yStep) + ((0.5) * yStep) + (v * yStep / dYRange)
         f :: ((Double -> Double), Summary Double, Summary Double) -> C.Render (Summary Double)
-        f (y, s0, s) = fromJust <$> plotSummary1 y r g b w x (Just s0) s
+        f (y, s0, s) = fromJust <$> plotSummary1 y r g b x w (Just s0) s
 
 -- | Plot one numeric summary
 plotSummary1 :: (Double -> Double) -> Double -> Double -> Double
@@ -599,9 +613,16 @@ layersFromFile path = do
             wholeTrackSummaryListDouble standardIdentifiers trackNo
 
         listLayers :: TrackNo -> RGB -> [Summary Double] -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        listLayers trackNo rgb ss = ([ ScopeLayer (sListLayer trackNo rgb ss)
+        listLayers trackNo rgb ss = ([ ScopeLayer (rawListLayer trackNo ss)
+                                     , ScopeLayer (sListLayer trackNo rgb ss)
                                      ]
                                     , Just (summaryEntry s, summaryExit s))
+            where
+                s = head ss
+
+        rawListLayer :: TrackNo -> [Summary Double] -> Layer (TimeStamp, [Double])
+        rawListLayer trackNo ss = Layer path trackNo (summaryEntry s) (summaryExit s)
+            enumListDouble (LayerFold (plotRawList (maxRange ss)) Nothing)
             where
                 s = head ss
 
@@ -610,7 +631,9 @@ layersFromFile path = do
             (enumSummaryListDouble 1) (LayerFold (plotSummaryList (maxRange ss) r g b) Nothing)
             where
                 s = head ss
-                maxRange = maximum . map yRange
+
+        maxRange :: [Summary Double] -> Double
+        maxRange = maximum . map yRange
 
         yRange :: Summary Double -> Double
         yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
