@@ -490,8 +490,8 @@ plotLayer scope (ScopeLayer Layer{..}) =
 ----------------------------------------------------------------------
 -- Raw data
 
-plotRaw :: Double -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
-plotRaw yR = plotRaw1 (\y -> y * 2.0 / yR)
+_plotRaw :: Double -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
+_plotRaw yR = plotRaw1 (\y -> y * 2.0 / yR)
 
 plotRawList :: Double -> LayerFoldFunc (TimeStamp, [Double]) (Maybe [Double])
 plotRawList yRange x w Nothing (ts, ys) = plotRawList yRange x w (Just ys) (ts, ys)
@@ -516,9 +516,9 @@ plotRaw1 f x w (Just y0) (_ts, y) = do
 ----------------------------------------------------------------------
 -- Summary data
 
-plotSummary :: Double -> Double -> Double -> Double
-            -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
-plotSummary dYRange = plotSummary1 (\v -> v * 4.0 / dYRange)
+_plotSummary :: Double -> Double -> Double -> Double
+             -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
+_plotSummary dYRange = plotSummary1 (\v -> v * 4.0 / dYRange)
 
 plotSummaryList :: Double -> Double -> Double -> Double
                 -> LayerFoldFunc [Summary Double] (Maybe [Summary Double])
