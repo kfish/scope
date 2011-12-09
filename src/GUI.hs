@@ -27,6 +27,7 @@ import Data.IORef
 import Data.List (groupBy)
 import Data.Maybe
 import qualified Data.Iteratee as I
+import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
@@ -505,6 +506,19 @@ plotSummary :: Double -> Double -> Double -> Double
             -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
 plotSummary dYRange = plotSummary1 (\v -> v * 4.0 / dYRange)
 
+plotSummaryList :: Double -> Double -> Double -> Double
+                -> LayerFoldFunc [Summary Double] (Maybe [Summary Double])
+plotSummaryList dYRange r g b x w Nothing ss =
+    plotSummaryList dYRange r g b x w (Just ss) ss
+plotSummaryList dYRange r g b w x (Just ss0) ss = do
+    Just <$> mapM f (zip3 (map yFunc [0..]) ss0 ss)
+    where
+        l = length ss
+        yStep = 2.0 / fromIntegral l
+        yFunc n v = (-1.0) + (n * yStep) + ((0.5) * yStep) + (v * yStep / dYRange)
+        f :: ((Double -> Double), Summary Double, Summary Double) -> C.Render (Summary Double)
+        f (y, s0, s) = fromJust <$> plotSummary1 y r g b w x (Just s0) s
+
 -- | Plot one numeric summary
 plotSummary1 :: (Double -> Double) -> Double -> Double -> Double
             -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
@@ -554,15 +568,17 @@ layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
 layersFromFile path = do
     tracks <- IM.keys . cfSpecs <$> I.fileDriverRandom (iterHeaders standardIdentifiers) path
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
-    foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) (zip tracks colors)
+    -- foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) (zip tracks colors)
+    foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterListLayers t) path) (zip tracks colors)
     where
         merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
         merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, unionBounds bs1 bs2)
 
+{-
         iterLayers (trackNo, color) = layers trackNo color <$>
-            wholeTrackSummaryDouble standardIdentifiers trackNo
+            wholeTrackSummaryListDouble standardIdentifiers trackNo
 
         layers :: TrackNo -> RGB -> Summary Double -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
         layers trackNo rgb s = ([ ScopeLayer (rawLayer trackNo s)
@@ -577,6 +593,24 @@ layersFromFile path = do
         sLayer :: TrackNo -> RGB -> Summary Double -> Layer (Summary Double)
         sLayer trackNo (r, g, b) s = Layer path trackNo (summaryEntry s) (summaryExit s)
             (enumSummaryDouble 1) (LayerFold (plotSummary (yRange s) r g b) Nothing)
+-}
+
+        iterListLayers (trackNo, color) = listLayers trackNo color <$>
+            wholeTrackSummaryListDouble standardIdentifiers trackNo
+
+        listLayers :: TrackNo -> RGB -> [Summary Double] -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+        listLayers trackNo rgb ss = ([ ScopeLayer (sListLayer trackNo rgb ss)
+                                     ]
+                                    , Just (summaryEntry s, summaryExit s))
+            where
+                s = head ss
+
+        sListLayer :: TrackNo -> RGB -> [Summary Double] -> Layer [Summary Double]
+        sListLayer trackNo (r, g, b) ss = Layer path trackNo (summaryEntry s) (summaryExit s)
+            (enumSummaryListDouble 1) (LayerFold (plotSummaryList (maxRange ss) r g b) Nothing)
+            where
+                s = head ss
+                maxRange = maximum . map yRange
 
         yRange :: Summary Double -> Double
         yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
