@@ -40,17 +40,6 @@ windowWidth, windowHeight :: Int
 windowWidth   = 500
 windowHeight  = 500
 
-{-
--- Write image to file
-_writePng :: IO ()
-_writePng =
-  C.withImageSurface C.FormatARGB32 width height $ \ result -> do
-      C.renderWith result $ plotWindow width height
-      C.surfaceWriteToPNG result "Draw.png"
-  where width  = windowWidth
-        height = windowHeight
--}
-
 -- Display image in window
 guiMain :: Chan String -> [String] -> IO ()
 guiMain chan args = do
@@ -98,7 +87,6 @@ guiMain chan args = do
   saveDialog <- fChooser G.FileChooserActionSave G.stockSave
   savea `G.on` G.actionActivated $ G.widgetShow saveDialog
   saveasa `G.on` G.actionActivated $ G.widgetShow saveDialog
-  saveDialog `G.on` G.response $ myFileSave saveDialog
 
   -- Edit menu
   cut1 <- G.actionNew "cut1" "Cut" (Just "Just a Stub") (Just G.stockCut)
@@ -139,6 +127,7 @@ guiMain chan args = do
 
   mapM_ (modifyIORefM scopeRef . addLayersFromFile) args
   openDialog `G.on` G.response $ myFileOpen scopeRef openDialog
+  saveDialog `G.on` G.response $ myFileSave scopeRef saveDialog
 
   adj `G.onValueChanged` (scroll scopeRef)
 
@@ -194,8 +183,14 @@ myFileOpen scopeRef fcdialog response = do
     _ -> return ()
   G.widgetHide fcdialog
 
-myFileSave :: G.FileChooserDialog -> G.ResponseId -> IO ()
-myFileSave _ _ = return ()
+myFileSave :: IORef Scope -> G.FileChooserDialog -> G.ResponseId -> IO ()
+myFileSave scopeRef fcdialog response = do
+  case response of
+    G.ResponseAccept -> do
+        Just filename <- G.fileChooserGetFilename fcdialog
+        writePng filename scopeRef
+    _ -> return ()
+  G.widgetHide fcdialog
 
 myCut :: IO ()
 myCut = putStrLn "Cut"
@@ -217,6 +212,15 @@ updateCanvas ref = do
     (width, height) <- G.widgetGetSize c
     G.renderWithDrawable win $ plotWindow width height scope
     return True
+
+writePng :: FilePath -> IORef Scope -> IO ()
+writePng path ref = do
+    scope <- readIORef ref
+    let c = canvas . view $ scope
+    (width, height) <- G.widgetGetSize c
+    C.withImageSurface C.FormatARGB32 width height $ \ result -> do
+        C.renderWith result $ plotWindow width height scope
+        C.surfaceWriteToPNG result path
 
 ----------------------------------------------------------------
 
