@@ -16,7 +16,7 @@ Description:
     To run it, simply:
     .
     @
-        $ cabal install scope
+        $ cabal install gtk2hs-buildtools scope
         $ scope
     @
     .
