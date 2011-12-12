@@ -4,12 +4,6 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS -Wall -fno-warn-unused-do-bind -fno-warn-orphans #-}
---
--- Based on Gtk2Hs/demo/cairo/Drawing2.hs 
--- Author: Johan Bockgård <bojohan@dd.chalmers.se>
---
--- This code is in the public domain.
---
 
 module GUI (
     guiMain
