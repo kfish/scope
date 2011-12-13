@@ -536,20 +536,16 @@ plotFileLayers path layers scope =
     flip I.fileDriverRandom path $ do
         I.joinI $ enumCacheFile identifiers $ do
             seekTimeStamp (viewStartTime scope (view scope))
-            I.sequence_ is
+            I.joinI . I.takeWhileE (before (viewEndTime scope v)) $ I.sequence_ is
     where
+        v = view scope
         identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
 
 plotLayer :: Scope -> ScopeLayer -> I.Iteratee [Stream] Render ()
 plotLayer scope (ScopeLayer Layer{..}) =
-    I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ foldData
+    I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ render plotter
     where
-        v@View{..} = view scope
-
-        foldData = do
-            I.joinI . I.takeWhileE (before (viewEndTime scope v)) $ render plotter
-
         render (LayerMap f) = do
             d0'm <- I.tryHead
             case d0'm of
