@@ -365,6 +365,7 @@ plotWindow :: Int -> Int -> Scope -> C.Render ()
 plotWindow width height scope = do
     prologue width height (view scope)
     plotLayers scope
+    plotTimeline scope
     plotCursor scope
 
 -- Set up stuff
@@ -444,6 +445,24 @@ plotCursor scope = maybe (return ()) f pointerX
             C.moveTo cX (-1.0)
             C.lineTo cX 1.0
             C.stroke
+
+----------------------------------------------------------------
+
+plotTimeline :: Scope -> C.Render ()
+plotTimeline scope = do
+    maybe (return ()) plotArrow pointerX
+    where
+        View{..} = view scope
+
+plotArrow :: CanvasX -> C.Render ()
+plotArrow (CanvasX cX) = do
+    C.setSourceRGBA 0 0 0 0.9
+    C.moveTo (cX-0.004) (0.99)
+    C.lineTo (cX+0.004) (0.99)
+    C.lineTo cX (0.98)
+    C.fill
+
+----------------------------------------------------------------
 
 plotLayers :: Scope -> C.Render ()
 plotLayers scope = mapM_ f layersByFile
