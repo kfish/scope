@@ -442,6 +442,7 @@ plotCursor scope = maybe (return ()) f pointerX
         View{..} = view scope
         f :: CanvasX -> C.Render ()
         f (CanvasX cX) = do
+            C.setSourceRGBA 0 0.7 0 0.4
             C.moveTo cX (-1.0)
             C.lineTo cX 1.0
             C.stroke
@@ -451,7 +452,9 @@ plotCursor scope = maybe (return ()) f pointerX
 plotTimeline :: Scope -> C.Render ()
 plotTimeline scope = do
     case (dataToTimeStamp scope viewX1, dataToTimeStamp scope viewX2) of
-        (Just s, Just e) -> plotAllTicks s e
+        (Just s, Just e) -> do
+            plotAllTicks s e
+            plotAllLabels s e
         _                -> return ()
     maybe (return ()) plotArrow pointerX
     where
@@ -481,6 +484,33 @@ plotTimeline scope = do
             C.moveTo cX 0.99
             C.lineTo cX (0.99 - len)
             C.stroke
+
+        plotAllLabels :: TimeStamp -> TimeStamp -> C.Render ()
+        plotAllLabels (TS start) (TS end) =
+            mapM_ (\s -> plotLabels s (TS start) (TS end)) steps
+            where
+                readable x = let viz = (end - start) / x in (viz < 5 && viz >= 1)
+                steps = take 1 . filter readable $ [3600, 60, 10, 5, 1, 0.1, 0.05]
+
+        plotLabels :: Double -> TimeStamp -> TimeStamp -> C.Render ()
+        plotLabels step (TS start) (TS end) = keepState $ do
+            let flipY = M.Matrix 1 0 0 (-1) 0 0
+            C.transform flipY
+
+            let s = (fromIntegral (ceiling (start/step) :: Integer)) * step
+            mapM_ (plotLabel . TS) [s, s+step .. end]
+
+        plotLabel :: TimeStamp -> C.Render ()
+        plotLabel ts = do
+            let CanvasX cX = timeStampToCanvas scope ts
+            drawString (prettyTimeStamp ts) cX (-0.9)
+
+drawString :: String -> Double -> Double -> C.Render ()
+drawString s x y = do
+    C.setFontSize 0.027
+    C.moveTo x y
+    C.textPath s
+    C.fillPreserve
 
 plotArrow :: CanvasX -> C.Render ()
 plotArrow (CanvasX cX) = do
