@@ -450,9 +450,37 @@ plotCursor scope = maybe (return ()) f pointerX
 
 plotTimeline :: Scope -> C.Render ()
 plotTimeline scope = do
+    case (dataToTimeStamp scope viewX1, dataToTimeStamp scope viewX2) of
+        (Just s, Just e) -> plotAllTicks s e
+        _                -> return ()
     maybe (return ()) plotArrow pointerX
     where
         View{..} = view scope
+
+        plotAllTicks :: TimeStamp -> TimeStamp -> C.Render ()
+        plotAllTicks s e = do
+            plotTicks 0.001 0.05 s e
+            plotTicks 0.01 0.1 s e
+            plotTicks 0.02 1.0 s e
+            plotTicks 0.04 5.0 s e
+            plotTicks 0.06 10.0 s e
+            plotTicks 0.08 60.0 s e
+            plotTicks 0.10 3600.0 s e
+
+        plotTicks :: Double -> Double -> TimeStamp -> TimeStamp -> C.Render ()
+        plotTicks len step (TS start) (TS end) =
+            when doDraw $ mapM_ (plotTick len) (map TS [s, s+step .. end])
+            where
+                doDraw = (end - start) / step < 100
+                s = (fromIntegral (floor (start/step) :: Integer)) * step
+
+        plotTick :: Double -> TimeStamp -> C.Render ()
+        plotTick len ts = do
+            let (CanvasX cX) = timeStampToCanvas scope ts
+            C.setSourceRGBA 0 0 0 1.0
+            C.moveTo cX 0.99
+            C.lineTo cX (0.99 - len)
+            C.stroke
 
 plotArrow :: CanvasX -> C.Render ()
 plotArrow (CanvasX cX) = do
