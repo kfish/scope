@@ -141,7 +141,7 @@ guiMain chan args = do
   G.widgetAddEvents drawingArea
     [ G.KeyPressMask
     , G.KeyReleaseMask
-    -- , G.PointerMotionMask
+    , G.PointerMotionMask
     , G.ButtonMotionMask
     , G.ScrollMask
     ]
@@ -365,6 +365,7 @@ plotWindow :: Int -> Int -> Scope -> C.Render ()
 plotWindow width height scope = do
     prologue width height (view scope)
     plotLayers scope
+    plotCursor scope
 
 -- Set up stuff
 prologue :: Int -> Int -> View -> C.Render ()
@@ -433,6 +434,16 @@ instance TimeStampable (Summary a) where
     timeStamp = summaryEntry
 
 ----------------------------------------------------------------
+
+plotCursor :: Scope -> C.Render ()
+plotCursor scope = maybe (return ()) f pointerX
+    where
+        View{..} = view scope
+        f :: CanvasX -> C.Render ()
+        f (CanvasX cX) = do
+            C.moveTo cX (-1.0)
+            C.lineTo cX 1.0
+            C.stroke
 
 plotLayers :: Scope -> C.Render ()
 plotLayers scope = mapM_ f layersByFile

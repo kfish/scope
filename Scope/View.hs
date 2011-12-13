@@ -111,7 +111,11 @@ viewButtonDown :: CanvasX -> View -> View
 viewButtonDown cX v = v { dragDX = Just (canvasToData v cX) }
 
 viewButtonMotion :: CanvasX -> View -> View
-viewButtonMotion cX v@View{..} = viewAlign cX (fromJust dragDX) v
+viewButtonMotion cX v@View{..} = case dragDX of
+    Just dX -> viewAlign cX dX v'
+    Nothing -> v'
+    where
+        v' = v { pointerX = Just cX }
 
 viewButtonRelease :: View -> View
 viewButtonRelease v = v { dragDX = Nothing}

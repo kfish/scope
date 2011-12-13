@@ -220,6 +220,7 @@ data View = View
     , viewY1 :: Double
     , viewX2 :: DataX
     , viewY2 :: Double
+    , pointerX :: Maybe CanvasX
     , dragDX :: Maybe DataX -- DataX of pointer at drag down
     }
 
@@ -234,7 +235,7 @@ scopeTransform :: Transform DataX -> Scope -> Scope
 scopeTransform tf scope@Scope{..} = scope { view = viewTransform tf view }
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
-viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing
+viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing Nothing
 
 viewTransform :: Transform DataX -> View -> View
 viewTransform tf v@View{..} = v {
