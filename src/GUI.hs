@@ -536,7 +536,7 @@ plotFileLayers path layers scope =
     flip I.fileDriverRandom path $ do
         I.joinI $ enumCacheFile identifiers $ do
             seekTimeStamp (viewStartTime scope (view scope))
-            I.joinI . I.takeWhileE (before (viewEndTime scope v)) $ I.sequence_ is
+            I.joinI . (I.takeWhileE (before (viewEndTime scope v)) >=> I.take 1) $ I.sequence_ is
     where
         v = view scope
         identifiers = standardIdentifiers
