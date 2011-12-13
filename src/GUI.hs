@@ -481,8 +481,8 @@ plotTimeline scope = do
         plotTick len ts = do
             let (CanvasX cX) = timeStampToCanvas scope ts
             C.setSourceRGBA 0 0 0 1.0
-            C.moveTo cX 0.99
-            C.lineTo cX (0.99 - len)
+            C.moveTo cX 0.90
+            C.lineTo cX (0.90 + len)
             C.stroke
 
         plotAllLabels :: TimeStamp -> TimeStamp -> C.Render ()
@@ -494,20 +494,21 @@ plotTimeline scope = do
 
         plotLabels :: Double -> TimeStamp -> TimeStamp -> C.Render ()
         plotLabels step (TS start) (TS end) = keepState $ do
-            let flipY = M.Matrix 1 0 0 (-1) 0 0
+            let flipY = M.Matrix 1 0 0 (-2.2) 0 0
             C.transform flipY
 
-            let s = (fromIntegral (ceiling (start/step) :: Integer)) * step
+            let s = (fromIntegral (floor (start/step) :: Integer)) * step
             mapM_ (plotLabel . TS) [s, s+step .. end]
 
         plotLabel :: TimeStamp -> C.Render ()
         plotLabel ts = do
             let CanvasX cX = timeStampToCanvas scope ts
-            drawString (prettyTimeStamp ts) cX (-0.9)
+            drawString (prettyTimeStamp ts) cX (-0.44)
 
 drawString :: String -> Double -> Double -> C.Render ()
 drawString s x y = do
-    C.setFontSize 0.027
+    C.selectFontFace "sans" C.FontSlantNormal C.FontWeightNormal
+    C.setFontSize 0.02
     C.moveTo x y
     C.textPath s
     C.fillPreserve
