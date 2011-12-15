@@ -16,22 +16,19 @@ import Control.Concurrent
 import Control.Monad.CatchIO
 import Control.Monad.Reader
 import Data.Function (on)
-import qualified Data.IntMap as IM
 import Data.IORef
 import Data.List (groupBy)
 import Data.Maybe
 import qualified Data.Iteratee as I
-import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
 import Graphics.Rendering.Cairo.Internal (Render(..))
 import Graphics.Rendering.Cairo.Types (Cairo)
 import qualified Graphics.Rendering.Cairo.Matrix as M
-import qualified System.Random.MWC as MWC
 
 import Paths_scope as My
-import Scope.Plot
+import Scope.Layer
 import Scope.Types
 import Scope.View
 
@@ -534,7 +531,7 @@ plotFileLayers path layers scope =
 
 plotLayer :: Scope -> ScopeLayer -> I.Iteratee [Stream] Render ()
 plotLayer scope (ScopeLayer Layer{..}) =
-    I.joinI . filterTracks [trackNo] . I.joinI . convEnee $ render plotter
+    I.joinI . filterTracks [layerTrackNo] . I.joinI . convEnee $ render plotter
     where
         render (LayerMap f) = do
             d0'm <- I.tryHead
@@ -585,101 +582,6 @@ scopeModifyView :: (View -> View) -> Scope -> Scope
 scopeModifyView f scope = scope{ view = f (view scope) }
 
 ----------------------------------------------------------------------
--- Random, similar colors
-
-type RGB = (Double, Double, Double)
-
-genColor :: RGB -> Double -> MWC.GenIO -> IO RGB
-genColor (r, g, b) a gen = do
-    let a' = 1.0 - a
-    r' <- MWC.uniformR (0.0, a') gen
-    g' <- MWC.uniformR (0.0, a') gen
-    b' <- MWC.uniformR (0.0, a') gen
-    return (r*a + r', g*a + g', b*a * b')
-
-genColors :: Int -> RGB -> Double -> IO [RGB]
-genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
-
-----------------------------------------------------------------------
-
-layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-layersFromFile path = do
-    tracks <- IM.keys . cfSpecs <$> I.fileDriverRandom (iterHeaders standardIdentifiers) path
-    colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
-    -- foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) (zip tracks colors)
-    foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterListLayers t) path) (zip tracks colors)
-    where
-        merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, unionBounds bs1 bs2)
-
-{-
-        iterLayers (trackNo, color) = layers trackNo color <$>
-            wholeTrackSummaryListDouble standardIdentifiers trackNo
-
-        layers :: TrackNo -> RGB -> Summary Double -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        layers trackNo rgb s = ([ ScopeLayer (rawLayer trackNo s)
-                                , ScopeLayer (sLayer trackNo rgb s)
-                                ]
-                               , Just (summaryEntry s, summaryExit s))
-
-        rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
-        rawLayer trackNo s = Layer path trackNo (summaryEntry s) (summaryExit s)
-            enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
-
-        sLayer :: TrackNo -> RGB -> Summary Double -> Layer (Summary Double)
-        sLayer trackNo (r, g, b) s = Layer path trackNo (summaryEntry s) (summaryExit s)
-            (enumSummaryDouble 1) (LayerFold (plotSummary (yRange s) r g b) Nothing)
--}
-
-        iterListLayers (trackNo, color) = listLayers trackNo color <$>
-            wholeTrackSummaryListDouble standardIdentifiers trackNo
-
-        listLayers :: TrackNo -> RGB -> [Summary Double] -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        listLayers trackNo rgb ss = ([ ScopeLayer (rawListLayer trackNo ss)
-                                     , ScopeLayer (sListLayer trackNo rgb ss)
-                                     ]
-                                    , Just (summaryEntry s, summaryExit s))
-            where
-                s = head ss
-
-        rawListLayer :: TrackNo -> [Summary Double] -> Layer (TimeStamp, [Double])
-        rawListLayer trackNo ss = Layer path trackNo (summaryEntry s) (summaryExit s)
-            enumListDouble (LayerFold (plotRawList (maxRange ss)) Nothing)
-            where
-                s = head ss
-
-        sListLayer :: TrackNo -> RGB -> [Summary Double] -> Layer [Summary Double]
-        sListLayer trackNo (r, g, b) ss = Layer path trackNo (summaryEntry s) (summaryExit s)
-            (enumSummaryListDouble 1) (LayerFold (plotSummaryList (maxRange ss) r g b) Nothing)
-            where
-                s = head ss
-
-        maxRange :: [Summary Double] -> Double
-        maxRange = maximum . map yRange
-
-        yRange :: Summary Double -> Double
-        yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
-
-unionBounds :: Ord a => Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
-unionBounds a         Nothing   = a
-unionBounds Nothing   b         = b
-unionBounds (Just r1) (Just r2) = Just (unionRange r1 r2)
-
-addLayersFromFile :: FilePath -> Scope -> IO Scope
-addLayersFromFile path scope = do
-    (newLayers, newBounds) <- layersFromFile path
-    let oldBounds = bounds scope
-        mb = unionBounds oldBounds newBounds
-        t = case oldBounds of
-                Just ob -> if oldBounds == mb
-                               then id
-                               else scopeTransform (mkTSDataTransform ob (fromJust mb))
-                _ -> id
-    return $ (t scope) { layers = layers scope ++ newLayers
-                       , bounds = mb
-                       }
 
 modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
 modifyIORefM ref f = do

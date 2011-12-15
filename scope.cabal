@@ -65,12 +65,15 @@ Library
   Build-Depends:
     cairo,
     gtk,
+    containers                >= 0.2     && < 0.5,
     iteratee                  >= 0.8.6.0 && < 0.9,
     MonadCatchIO-transformers >  0.2     && < 0.3,
     mtl                       >= 2.0.0.0 && < 3,
+    mwc-random,
     zoom-cache                >= 0.9.1.0 && < 0.10
 
   Exposed-modules:
+    Scope.Layer
     Scope.Plot
     Scope.Types
     Scope.View
@@ -89,9 +92,9 @@ Executable scope
   Hs-Source-Dirs:      ., src
   Build-Depends:
     cairo,
-    containers                >= 0.2     && < 0.5,
     glib,
     gtk,
+    containers                >= 0.2     && < 0.5,
     iteratee                  >= 0.8.6.0 && < 0.9,
     ListLike                  >= 1.0     && < 4,
     MonadCatchIO-transformers >  0.2     && < 0.3,
