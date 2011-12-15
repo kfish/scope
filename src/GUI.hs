@@ -425,17 +425,6 @@ mapRender f = Render . f . runRender
 
 ----------------------------------------------------------------
 
-class TimeStampable a where
-    timeStamp :: a -> TimeStamp
-
-instance TimeStampable (TimeStamp, a) where
-    timeStamp (ts, _) = ts
-
-instance TimeStampable (Summary a) where
-    timeStamp = summaryEntry
-
-----------------------------------------------------------------
-
 plotCursor :: Scope -> C.Render ()
 plotCursor scope = maybe (return ()) f pointerX
     where
