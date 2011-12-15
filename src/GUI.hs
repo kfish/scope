@@ -507,15 +507,23 @@ plotArrow (CanvasX cX) = do
 
 ----------------------------------------------------------------
 
-plotLayers :: Scope -> C.Render ()
+class (Functor m, MonadCatchIO m) => ScopeRender m where
+    renderCmds :: [DrawCmd] -> m ()
+
+instance ScopeRender C.Render where
+    renderCmds = keepState . mapM_ cairoDrawCmd
+
+----------------------------------------------------------------
+
+plotLayers :: ScopeRender m => Scope -> m ()
 plotLayers scope = mapM_ f layersByFile
     where
-        f :: [ScopeLayer] -> C.Render ()
-        f ls = keepState $ plotFileLayers (fn . head $ ls) ls scope
+        f :: ScopeRender m => [ScopeLayer] -> m ()
+        f ls = plotFileLayers (fn . head $ ls) ls scope
         layersByFile = groupBy ((==) `on` fn) (layers scope)
         fn (ScopeLayer l) = filename l
 
-plotFileLayers :: FilePath -> [ScopeLayer] -> Scope -> C.Render ()
+plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope -> m ()
 plotFileLayers path layers scope =
     flip I.fileDriverRandom path $ do
         I.joinI $ enumCacheFile identifiers $ do
@@ -526,7 +534,7 @@ plotFileLayers path layers scope =
         identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
 
-plotLayer :: Scope -> ScopeLayer -> I.Iteratee [Stream] Render ()
+plotLayer :: ScopeRender m => Scope -> ScopeLayer -> I.Iteratee [Stream] m ()
 plotLayer scope (ScopeLayer Layer{..}) =
     I.joinI . filterTracks [layerTrackNo] . I.joinI . convEnee $ render plotter
     where
@@ -539,7 +547,7 @@ plotLayer scope (ScopeLayer Layer{..}) =
                 renderMap x0 d = do
                     let x = toX d
                         cmds = f x0 (x-x0) d
-                    mapM_ cairoDrawCmd cmds
+                    renderCmds cmds
                     return x
         render (LayerFold f b00) = do
             d0'm <- I.tryHead
@@ -550,7 +558,7 @@ plotLayer scope (ScopeLayer Layer{..}) =
                 renderFold (x0, b0) d = do
                     let x = toX d
                         (cmds, b) = f x0 (x-x0) b0 d
-                    mapM_ cairoDrawCmd cmds
+                    renderCmds cmds
                     return (x, b)
 
         toX :: Timestampable a => a -> Double
