@@ -71,8 +71,9 @@ Library
     zoom-cache                >= 0.9.1.0 && < 0.10
 
   Exposed-modules:
-    Scope.View
+    Scope.Plot
     Scope.Types
+    Scope.View
 
 Executable scope
   if flag(splitBase)
