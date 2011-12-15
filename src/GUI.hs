@@ -14,7 +14,7 @@ import Control.Monad.CatchIO
 import Control.Monad.Reader
 import Data.IORef
 import Data.Maybe
-import Data.ZoomCache.Numeric
+import Data.ZoomCache (TimeStamp(..), prettyTimeStamp)
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
 import Graphics.Rendering.Cairo.Internal (Render(..))
