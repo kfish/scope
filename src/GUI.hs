@@ -12,11 +12,8 @@ import Control.Applicative ((<$>))
 import Control.Concurrent
 import Control.Monad.CatchIO
 import Control.Monad.Reader
-import Data.Function (on)
 import Data.IORef
-import Data.List (groupBy)
 import Data.Maybe
-import qualified Data.Iteratee as I
 import Data.ZoomCache.Numeric
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
@@ -509,57 +506,6 @@ plotArrow (CanvasX cX) = do
 
 instance ScopeRender C.Render where
     renderCmds = keepState . mapM_ cairoDrawCmd
-
-----------------------------------------------------------------
-
-plotLayers :: ScopeRender m => Scope -> m ()
-plotLayers scope = mapM_ f layersByFile
-    where
-        f :: ScopeRender m => [ScopeLayer] -> m ()
-        f ls = plotFileLayers (fn . head $ ls) ls scope
-        layersByFile = groupBy ((==) `on` fn) (layers scope)
-        fn (ScopeLayer l) = filename l
-
-plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope -> m ()
-plotFileLayers path layers scope =
-    flip I.fileDriverRandom path $ do
-        I.joinI $ enumCacheFile identifiers $ do
-            seekTimeStamp (viewStartTime scope (view scope))
-            I.joinI . (I.takeWhileE (before (viewEndTime scope v)) >=> I.take 1) $ I.sequence_ is
-    where
-        v = view scope
-        identifiers = standardIdentifiers
-        is = map (plotLayer scope) layers
-
-plotLayer :: ScopeRender m => Scope -> ScopeLayer -> I.Iteratee [Stream] m ()
-plotLayer scope (ScopeLayer Layer{..}) =
-    I.joinI . filterTracks [layerTrackNo] . I.joinI . convEnee $ render plotter
-    where
-        render (LayerMap f) = do
-            d0'm <- I.tryHead
-            case d0'm of
-                Just d0 -> I.foldM renderMap (toX d0) >> return ()
-                Nothing -> return ()
-            where
-                renderMap x0 d = do
-                    let x = toX d
-                        cmds = f x0 (x-x0) d
-                    renderCmds cmds
-                    return x
-        render (LayerFold f b00) = do
-            d0'm <- I.tryHead
-            case d0'm of
-                Just d0 -> I.foldM renderFold (toX d0, b00) >> return ()
-                Nothing -> return ()
-            where
-                renderFold (x0, b0) d = do
-                    let x = toX d
-                        (cmds, b) = f x0 (x-x0) b0 d
-                    renderCmds cmds
-                    return (x, b)
-
-        toX :: Timestampable a => a -> Double
-        toX = toDouble . timeStampToCanvas scope . fromJust . timestamp
 
 ----------------------------------------------------------------------
 
