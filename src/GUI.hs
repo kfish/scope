@@ -507,9 +507,6 @@ plotArrow (CanvasX cX) = do
 
 ----------------------------------------------------------------
 
-class (Functor m, MonadCatchIO m) => ScopeRender m where
-    renderCmds :: [DrawCmd] -> m ()
-
 instance ScopeRender C.Render where
     renderCmds = keepState . mapM_ cairoDrawCmd
 

@@ -57,6 +57,7 @@ module Scope.Types (
 
     -- * Drawing commands
     , DrawCmd(..)
+    , ScopeRender(..)
 
     -- * Scope
     , Scope(..)
@@ -76,6 +77,7 @@ module Scope.Types (
 ) where
 
 import Control.Applicative ((<$>))
+import Control.Monad.CatchIO
 import Data.Maybe
 import Data.Iteratee (Enumeratee)
 import Data.ZoomCache
@@ -192,6 +194,11 @@ data DrawCmd =
     | MoveTo   (Double, Double)
     | LineTo   (Double, Double)
     | FillPoly [(Double, Double)]
+
+----------------------------------------------------------------------
+
+class (Functor m, MonadCatchIO m) => ScopeRender m where
+    renderCmds :: [DrawCmd] -> m ()
 
 ----------------------------------------------------------------------
 
