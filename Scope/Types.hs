@@ -199,7 +199,7 @@ data Layer a = Layer
     , trackNo :: TrackNo
     , startTime :: TimeStamp
     , endTime :: TimeStamp
-    , convEnee :: Enumeratee [Stream] [a] C.Render ()
+    , convEnee :: forall m . (Functor m, Monad m) => Enumeratee [Stream] [a] m ()
     , plotter :: LayerPlot a
     }
 
