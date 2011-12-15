@@ -1,7 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances #-} -- TimeStampable
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS -Wall -fno-warn-unused-do-bind -fno-warn-orphans #-}
 
@@ -578,12 +575,9 @@ cairoDrawCmd (FillPoly ((x,y):ps)) = do
 
 ----------------------------------------------------------------------
 
-
 modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
 modifyIORefM ref f = do
     x <- readIORef ref
     x' <- f x
     writeIORef ref x'
-
-----------------------------------------------------------------
 
