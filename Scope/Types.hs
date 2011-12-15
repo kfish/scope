@@ -55,6 +55,9 @@ module Scope.Types (
     , restrictRange01
     , zoomRange
 
+    -- * Drawing commands
+    , DrawCmd(..)
+
     -- * Scope
     , Scope(..)
     , scopeNew
@@ -76,7 +79,6 @@ import Data.Maybe
 import Data.Iteratee (Enumeratee)
 import Data.ZoomCache
 
-import qualified Graphics.Rendering.Cairo as C
 import qualified Graphics.UI.Gtk as G
 
 ----------------------------------------------------------------------
@@ -183,13 +185,22 @@ mkTSDataTransform (old1, old2) (new1, new2) = Transform m b
 
 ----------------------------------------------------------------------
 
+data DrawCmd =
+      SetRGB   Double Double Double
+    | SetRGBA  Double Double Double Double
+    | MoveTo   (Double, Double)
+    | LineTo   (Double, Double)
+    | FillPoly [(Double, Double)]
+
+----------------------------------------------------------------------
+
 -- | A layer plotting function which is just given the x position and x width
 -- to render the data value of type 'a' into.
-type LayerMapFunc a = Double -> Double -> a -> C.Render ()
+type LayerMapFunc a = Double -> Double -> a -> [DrawCmd]
 
 -- | A layer plotting function which is given the x position and x width,
 -- and a previously returned value of type 'b'
-type LayerFoldFunc a b = Double -> Double -> b -> a -> C.Render b
+type LayerFoldFunc a b = Double -> Double -> b -> a -> ([DrawCmd], b)
 
 data LayerPlot a = LayerMap (LayerMapFunc a)
                  | forall b . LayerFold (LayerFoldFunc a b) b
