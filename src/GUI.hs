@@ -578,10 +578,6 @@ cairoDrawCmd (FillPoly ((x,y):ps)) = do
 
 ----------------------------------------------------------------------
 
-scopeModifyView :: (View -> View) -> Scope -> Scope
-scopeModifyView f scope = scope{ view = f (view scope) }
-
-----------------------------------------------------------------------
 
 modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
 modifyIORefM ref f = do

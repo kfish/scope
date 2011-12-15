@@ -61,6 +61,7 @@ module Scope.Types (
     -- * Scope
     , Scope(..)
     , scopeNew
+    , scopeModifyView
     , scopeTransform
 
     -- * Views
@@ -242,8 +243,11 @@ scopeNew c adj = Scope {
     , layers = []
     }
 
+scopeModifyView :: (View -> View) -> Scope -> Scope
+scopeModifyView f scope = scope{ view = f (view scope) }
+
 scopeTransform :: Transform DataX -> Scope -> Scope
-scopeTransform tf scope@Scope{..} = scope { view = viewTransform tf view }
+scopeTransform tf = scopeModifyView (viewTransform tf)
 
 viewInit :: G.DrawingArea -> G.Adjustment -> View
 viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing Nothing
