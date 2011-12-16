@@ -82,8 +82,6 @@ import Data.Maybe
 import Data.Iteratee (Enumeratee)
 import Data.ZoomCache
 
-import qualified Graphics.UI.Gtk as G
-
 ----------------------------------------------------------------------
 
 data Transform a = Transform { m :: Double, b :: a }
@@ -226,40 +224,39 @@ data ScopeLayer = forall a . Timestampable a => ScopeLayer (Layer a)
 
 ----------------------------------------------------------------------
 
-data Scope = Scope
-    { view   :: View
+data Scope ui = Scope
+    { view   :: View ui
     , bounds :: Maybe (TimeStamp, TimeStamp)
     , layers :: [ScopeLayer]
     }
 
-data View = View
-    { canvas :: G.DrawingArea
-    , adj    :: G.Adjustment
-    , viewX1 :: DataX
+data View ui = View
+    { viewX1 :: DataX
     , viewY1 :: Double
     , viewX2 :: DataX
     , viewY2 :: Double
     , pointerX :: Maybe CanvasX
     , dragDX :: Maybe DataX -- DataX of pointer at drag down
+    , viewUI :: ui
     }
 
-scopeNew :: G.DrawingArea -> G.Adjustment -> Scope
-scopeNew c adj = Scope {
-      view = viewInit c adj
+scopeNew :: ui -> Scope ui
+scopeNew ui = Scope {
+      view = viewInit ui
     , bounds = Nothing
     , layers = []
     }
 
-scopeModifyView :: (View -> View) -> Scope -> Scope
+scopeModifyView :: (View ui -> View ui) -> Scope ui -> Scope ui
 scopeModifyView f scope = scope{ view = f (view scope) }
 
-scopeTransform :: Transform DataX -> Scope -> Scope
+scopeTransform :: Transform DataX -> Scope ui -> Scope ui
 scopeTransform tf = scopeModifyView (viewTransform tf)
 
-viewInit :: G.DrawingArea -> G.Adjustment -> View
-viewInit c adj = View c adj (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing Nothing
+viewInit :: ui -> View ui
+viewInit = View (DataX 0.0) (-1.0) (DataX 1.0) 1.0 Nothing Nothing
 
-viewTransform :: Transform DataX -> View -> View
+viewTransform :: Transform DataX -> View ui -> View ui
 viewTransform tf v@View{..} = v {
       viewX1 = transform tf viewX1
     , viewX2 = transform tf viewX2

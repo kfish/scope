@@ -119,7 +119,7 @@ unionBounds a         Nothing   = a
 unionBounds Nothing   b         = b
 unionBounds (Just r1) (Just r2) = Just (unionRange r1 r2)
 
-addLayersFromFile :: FilePath -> Scope -> IO Scope
+addLayersFromFile :: FilePath -> Scope ui -> IO (Scope ui)
 addLayersFromFile path scope = do
     (newLayers, newBounds) <- layersFromFile path
     let oldBounds = bounds scope
@@ -135,7 +135,7 @@ addLayersFromFile path scope = do
 
 ----------------------------------------------------------------
 
-plotLayers :: ScopeRender m => Scope -> m ()
+plotLayers :: ScopeRender m => Scope ui -> m ()
 plotLayers scope = mapM_ f layersByFile
     where
         f :: ScopeRender m => [ScopeLayer] -> m ()
@@ -143,7 +143,7 @@ plotLayers scope = mapM_ f layersByFile
         layersByFile = groupBy ((==) `on` fn) (layers scope)
         fn (ScopeLayer l) = filename l
 
-plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope -> m ()
+plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope ui -> m ()
 plotFileLayers path layers scope =
     flip I.fileDriverRandom path $ do
         I.joinI $ enumCacheFile identifiers $ do
@@ -154,7 +154,7 @@ plotFileLayers path layers scope =
         identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
 
-plotLayer :: ScopeRender m => Scope -> ScopeLayer -> I.Iteratee [Stream] m ()
+plotLayer :: ScopeRender m => Scope ui -> ScopeLayer -> I.Iteratee [Stream] m ()
 plotLayer scope (ScopeLayer Layer{..}) =
     I.joinI . filterTracks [layerTrackNo] . I.joinI . convEnee $ render plotter
     where
