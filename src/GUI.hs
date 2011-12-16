@@ -214,7 +214,7 @@ writePng path ref = do
 ----------------------------------------------------------------
 
 scopeAlign :: IORef (Scope ViewCairo) -> CanvasX -> DataX -> IO ()
-scopeAlign ref cx dx = scopeModifyUpdate ref (scopeModifyView (viewAlign cx dx))
+scopeAlign ref cx dx = scopeModifyUpdate ref (viewAlign cx dx)
 
 scopeMoveLeft :: IORef (Scope ViewCairo) -> IO ()
 scopeMoveLeft ref = do
@@ -241,7 +241,7 @@ scopeZoomInOn ref focus mult = scopeZoomOutOn ref focus (1.0/mult)
 
 scopeZoomOutOn :: IORef (Scope ViewCairo) -> CanvasX -> Double -> IO ()
 scopeZoomOutOn ref focus mult =
-    scopeModifyUpdate ref (scopeModifyView (viewZoomOutOn focus mult))
+    scopeModifyUpdate ref (viewZoomOutOn focus mult)
 
 scopeModifyMUpdate :: IORef (Scope ViewCairo)
                    -> (Scope ViewCairo -> IO (Scope ViewCairo))
@@ -254,10 +254,10 @@ scopeModifyMUpdate ref f = do
     G.widgetQueueDraw (canvas viewUI)
 
 scopeModifyUpdate :: IORef (Scope ViewCairo)
-                  -> (Scope ViewCairo -> Scope ViewCairo)
+                  -> (View ViewCairo -> View ViewCairo)
                   -> IO ()
 scopeModifyUpdate ref f = do
-    modifyIORef ref f
+    modifyIORef ref (scopeModifyView f)
     View{..} <- view <$> readIORef ref
     G.adjustmentSetValue (adj viewUI) (toDouble viewX1)
     G.adjustmentSetPageSize (adj viewUI) $ toDouble (distance viewX1 viewX2)
@@ -294,7 +294,7 @@ motion ref = do
     liftIO $ do
         View{..} <- view <$> readIORef ref
         cX <- screenToCanvas viewUI (ScreenX x)
-        scopeModifyUpdate ref $ scopeModifyView (viewButtonMotion cX)
+        scopeModifyUpdate ref (viewButtonMotion cX)
 
 wheel :: IORef (Scope ViewCairo) -> G.EventM G.EScroll ()
 wheel ref = do
@@ -312,7 +312,7 @@ wheel ref = do
 scroll :: IORef (Scope ViewCairo) -> IO ()
 scroll ref = do
     val <- G.adjustmentGetValue =<< adj . viewUI . view <$> readIORef ref
-    scopeModifyUpdate ref $ scopeModifyView (viewMoveTo val)
+    scopeModifyUpdate ref (viewMoveTo val)
 
 ----------------------------------------------------------------
 
