@@ -248,17 +248,17 @@ scopeModifyMUpdate :: IORef (Scope ViewCairo)
                    -> IO ()
 scopeModifyMUpdate ref f = do
     modifyIORefM ref f
-    View{..} <- view <$> readIORef ref
-    G.adjustmentSetValue (adj viewUI) (toDouble viewX1)
-    G.adjustmentSetPageSize (adj viewUI) $ toDouble (distance viewX1 viewX2)
-    G.widgetQueueDraw (canvas viewUI)
+    viewCairoUpdate =<< view <$> readIORef ref
 
 scopeModifyUpdate :: IORef (Scope ViewCairo)
                   -> (View ViewCairo -> View ViewCairo)
                   -> IO ()
 scopeModifyUpdate ref f = do
     modifyIORef ref (scopeModifyView f)
-    View{..} <- view <$> readIORef ref
+    viewCairoUpdate =<< view <$> readIORef ref
+
+viewCairoUpdate :: View ViewCairo -> IO ()
+viewCairoUpdate View{..} = do
     G.adjustmentSetValue (adj viewUI) (toDouble viewX1)
     G.adjustmentSetPageSize (adj viewUI) $ toDouble (distance viewX1 viewX2)
     G.widgetQueueDraw (canvas viewUI)
