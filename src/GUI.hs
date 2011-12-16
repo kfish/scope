@@ -343,28 +343,19 @@ keyDown ref = do
 
 ----------------------------------------------------------------
 
-foreach :: (Monad m) => [a] -> (a -> m b) -> m [b]
-foreach = flip mapM
-
-----------------------------------------------------------------
-
 plotWindow :: Int -> Int -> Scope ViewCairo -> C.Render ()
 plotWindow width height scope = do
-    prologue width height (view scope)
+    prologue width height
     plotLayers scope
     plotTimeline scope
     plotCursor scope
 
 -- Set up stuff
-prologue :: Int -> Int -> View ViewCairo -> C.Render ()
-prologue wWidth wHeight View{..} = do
+prologue :: Int -> Int -> C.Render ()
+prologue wWidth wHeight = do
   -- Define viewport coords as (-1.0, -1.0) - (1.0, 1.0)
   let width   = 1.0
       height  = 2.0
-      xmax    = 1.0
-      xmin    = 0.0
-      ymax    = 1.0
-      ymin    = -1.0
       scaleX  = realToFrac wWidth  / width
       scaleY  = realToFrac wHeight / height
 
@@ -381,24 +372,6 @@ prologue wWidth wHeight View{..} = do
   -- positive y-axis upwards
   let flipY = M.Matrix 1 0 0 (-1) 0 0
   C.transform flipY
-
-  grid xmin xmax ymin ymax
-
-
--- Grid and axes
-grid :: Double -> Double -> Double -> Double -> C.Render ()
-grid xmin xmax ymin ymax =
-  keepState $ do
-  C.setSourceRGBA 0 0 0 0.7
-  -- axes
-  C.moveTo 0 ymin; C.lineTo 0 ymax; C.stroke
-  C.moveTo xmin 0; C.lineTo xmax 0; C.stroke
-  -- grid
-  C.setDash [0.01, 0.99] 0
-  foreach [xmin .. xmax] $ \ x ->
-      do C.moveTo x ymin
-         C.lineTo x ymax
-         C.stroke
 
 ----------------------------------------------------------------------
 
