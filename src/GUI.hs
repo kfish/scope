@@ -213,12 +213,6 @@ writePng path ref = do
 
 ----------------------------------------------------------------
 
-scopeZoomInOn :: IORef (Scope ViewCairo) -> CanvasX -> Double -> IO ()
-scopeZoomInOn ref focus mult = scopeModifyUpdate ref (viewZoomInOn focus mult)
-
-scopeZoomOutOn :: IORef (Scope ViewCairo) -> CanvasX -> Double -> IO ()
-scopeZoomOutOn ref focus mult = scopeModifyUpdate ref (viewZoomOutOn focus mult)
-
 scopeModifyMUpdate :: IORef (Scope ViewCairo)
                    -> (Scope ViewCairo -> IO (Scope ViewCairo))
                    -> IO ()
@@ -281,8 +275,8 @@ wheel ref = do
         let View{..} = view scope
         cX <- screenToCanvas viewUI (ScreenX x)
         case dir of
-            G.ScrollUp   -> scopeZoomInOn  ref cX 1.2
-            G.ScrollDown -> scopeZoomOutOn ref cX 1.2
+            G.ScrollUp   -> scopeModifyUpdate ref (viewZoomInOn cX 1.2)
+            G.ScrollDown -> scopeModifyUpdate ref (viewZoomOutOn cX 1.2)
             _            -> return ()
 
 scroll :: IORef (Scope ViewCairo) -> IO ()
