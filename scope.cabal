@@ -73,6 +73,7 @@ Library
     zoom-cache                >= 0.9.1.0 && < 0.10
 
   Exposed-modules:
+    Scope.Cairo
     Scope.Layer
     Scope.Plot
     Scope.Types

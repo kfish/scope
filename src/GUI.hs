@@ -26,18 +26,7 @@ import Scope.Layer
 import Scope.Types
 import Scope.View
 
-----------------------------------------------------------------------
-
-data ViewCairo = ViewCairo
-    { canvas :: G.DrawingArea
-    , adj    :: G.Adjustment
-    }
-
-scopeCairoNew :: G.DrawingArea -> G.Adjustment -> Scope ViewCairo
-scopeCairoNew c adj = scopeNew (viewCairoInit c adj)
-
-viewCairoInit :: G.DrawingArea -> G.Adjustment -> ViewCairo
-viewCairoInit c adj = ViewCairo c adj
+import Scope.Cairo
 
 ----------------------------------------------------------------------
 
