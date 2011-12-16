@@ -213,20 +213,17 @@ writePng path ref = do
 
 ----------------------------------------------------------------
 
-scopeAlign :: IORef (Scope ViewCairo) -> CanvasX -> DataX -> IO ()
-scopeAlign ref cx dx = scopeModifyUpdate ref (viewAlign cx dx)
+scopeMoveStart :: IORef (Scope ViewCairo) -> IO ()
+scopeMoveStart ref = scopeModifyUpdate ref viewMoveStart
+
+scopeMoveEnd :: IORef (Scope ViewCairo) -> IO ()
+scopeMoveEnd ref = scopeModifyUpdate ref viewMoveEnd
 
 scopeMoveLeft :: IORef (Scope ViewCairo) -> IO ()
-scopeMoveLeft ref = do
-    scope <- readIORef ref
-    let View{..} = view scope
-    scopeAlign ref (CanvasX 0.0) viewX2
+scopeMoveLeft ref = scopeModifyUpdate ref viewMoveLeft
 
 scopeMoveRight :: IORef (Scope ViewCairo) -> IO ()
-scopeMoveRight ref = do
-    scope <- readIORef ref
-    let View{..} = view scope
-    scopeAlign ref (CanvasX 1.0) viewX1
+scopeMoveRight ref = scopeModifyUpdate ref viewMoveRight
 
 ----------------------------------------------------------------
 
@@ -333,8 +330,8 @@ keyDown ref = do
     -- n <- G.eventKeyName
     -- liftIO . putStrLn $ printf "Key %s (%d) pressed" n v
     liftIO $ case v of
-        XK_Home -> scopeAlign ref (CanvasX 0.0) (DataX 0.0)
-        XK_End  -> scopeAlign ref (CanvasX 1.0) (DataX 1.0)
+        XK_Home -> scopeMoveStart ref
+        XK_End  -> scopeMoveEnd ref
         XK_Up   -> scopeZoomIn  ref 2.0
         XK_Down -> scopeZoomOut ref 2.0
         XK_Left  -> scopeMoveRight ref

@@ -25,6 +25,10 @@ module Scope.View (
 
     -- * Motion, zooming
     , viewAlign
+    , viewMoveStart
+    , viewMoveEnd
+    , viewMoveLeft
+    , viewMoveRight
     , viewMoveTo
     , viewZoomOutOn
 
@@ -93,6 +97,18 @@ viewAlign (CanvasX cx) (DataX dx) v@View{..} = viewSetEnds (DataX newX1') (DataX
         newX1 = max 0 $ dx - (cx * vW)
         newX2 = newX1 + vW
         (newX1', newX2') = restrictRange01 (newX1, newX2)
+
+viewMoveStart :: View ui -> View ui
+viewMoveStart = viewAlign (CanvasX 0.0) (DataX 0.0)
+
+viewMoveEnd :: View ui -> View ui
+viewMoveEnd = viewAlign (CanvasX 1.0) (DataX 1.0)
+
+viewMoveLeft :: View ui -> View ui
+viewMoveLeft v@View{..} = viewAlign (CanvasX 0.0) viewX2 v
+
+viewMoveRight :: View ui -> View ui
+viewMoveRight v@View{..} = viewAlign (CanvasX 1.0) viewX1 v
 
 viewMoveTo :: Double -> View ui -> View ui
 viewMoveTo val v@View{..} = viewSetEnds newX1' newX2' v
