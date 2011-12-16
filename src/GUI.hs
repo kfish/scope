@@ -270,9 +270,9 @@ _canvasToScreen c (CanvasX cX) = do
     (width, _height) <- G.widgetGetSize c
     return $ ScreenX (fromIntegral width * cX)
 
-screenToCanvas :: G.DrawingArea -> ScreenX -> IO CanvasX
-screenToCanvas c (ScreenX sX) = do
-    (width, _height) <- G.widgetGetSize c
+screenToCanvas :: ViewCairo -> ScreenX -> IO CanvasX
+screenToCanvas vc (ScreenX sX) = do
+    (width, _height) <- G.widgetGetSize (canvas vc)
     return $ CanvasX (sX / fromIntegral width)
 
 ----------------------------------------------------------------
@@ -281,8 +281,8 @@ buttonDown :: IORef (Scope ViewCairo) -> G.EventM G.EButton ()
 buttonDown ref = do
     (x, _y) <- G.eventCoordinates
     liftIO $ do
-        c <- canvas . viewUI . view <$> readIORef ref
-        cX <- screenToCanvas c (ScreenX x)
+        vc <- viewUI . view <$> readIORef ref
+        cX <- screenToCanvas vc (ScreenX x)
         modifyIORef ref (scopeModifyView (viewButtonDown cX))
 
 buttonRelease :: IORef (Scope ViewCairo) -> G.EventM G.EButton ()
@@ -293,7 +293,7 @@ motion ref = do
     (x, _y) <- G.eventCoordinates
     liftIO $ do
         View{..} <- view <$> readIORef ref
-        cX <- screenToCanvas (canvas viewUI) (ScreenX x)
+        cX <- screenToCanvas viewUI (ScreenX x)
         scopeModifyUpdate ref $ scopeModifyView (viewButtonMotion cX)
 
 wheel :: IORef (Scope ViewCairo) -> G.EventM G.EScroll ()
@@ -303,7 +303,7 @@ wheel ref = do
     liftIO $ do
         scope <- readIORef ref
         let View{..} = view scope
-        cX <- screenToCanvas (canvas viewUI) (ScreenX x)
+        cX <- screenToCanvas viewUI (ScreenX x)
         case dir of
             G.ScrollUp   -> scopeZoomInOn  ref cX 1.2
             G.ScrollDown -> scopeZoomOutOn ref cX 1.2
