@@ -213,26 +213,6 @@ writePng path ref = do
 
 ----------------------------------------------------------------
 
-scopeMoveStart :: IORef (Scope ViewCairo) -> IO ()
-scopeMoveStart ref = scopeModifyUpdate ref viewMoveStart
-
-scopeMoveEnd :: IORef (Scope ViewCairo) -> IO ()
-scopeMoveEnd ref = scopeModifyUpdate ref viewMoveEnd
-
-scopeMoveLeft :: IORef (Scope ViewCairo) -> IO ()
-scopeMoveLeft ref = scopeModifyUpdate ref viewMoveLeft
-
-scopeMoveRight :: IORef (Scope ViewCairo) -> IO ()
-scopeMoveRight ref = scopeModifyUpdate ref viewMoveRight
-
-----------------------------------------------------------------
-
-scopeZoomIn :: IORef (Scope ViewCairo) -> Double -> IO ()
-scopeZoomIn ref mult = scopeModifyUpdate ref (viewZoomIn mult)
-
-scopeZoomOut :: IORef (Scope ViewCairo) -> Double -> IO ()
-scopeZoomOut ref mult = scopeModifyUpdate ref (viewZoomOut mult)
-
 scopeZoomInOn :: IORef (Scope ViewCairo) -> CanvasX -> Double -> IO ()
 scopeZoomInOn ref focus mult = scopeModifyUpdate ref (viewZoomInOn focus mult)
 
@@ -328,14 +308,16 @@ keyDown ref = do
     v <- G.eventKeyVal
     -- n <- G.eventKeyName
     -- liftIO . putStrLn $ printf "Key %s (%d) pressed" n v
-    liftIO $ case v of
-        XK_Home -> scopeMoveStart ref
-        XK_End  -> scopeMoveEnd ref
-        XK_Up   -> scopeZoomIn  ref 2.0
-        XK_Down -> scopeZoomOut ref 2.0
-        XK_Left  -> scopeMoveRight ref
-        XK_Right -> scopeMoveLeft ref
-        _ -> return ()
+    let f = case v of
+                XK_Home -> Just viewMoveStart
+                XK_End  -> Just viewMoveEnd
+                XK_Up   -> Just $ viewZoomIn 2.0
+                XK_Down -> Just $ viewZoomOut 2.0
+                XK_Left  -> Just viewMoveRight
+                XK_Right -> Just viewMoveLeft
+                _ -> Nothing
+
+    maybe (return ()) (liftIO . scopeModifyUpdate ref) f
 
 ----------------------------------------------------------------
 
