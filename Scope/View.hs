@@ -23,13 +23,18 @@ module Scope.View (
     , viewEndTime
     , viewDuration
 
-    -- * Motion, zooming
+    -- * Motion
     , viewAlign
     , viewMoveStart
     , viewMoveEnd
     , viewMoveLeft
     , viewMoveRight
     , viewMoveTo
+
+    -- * Zoom
+    , viewZoomIn
+    , viewZoomOut
+    , viewZoomInOn
     , viewZoomOutOn
 
     -- * Button handling
@@ -116,6 +121,15 @@ viewMoveTo val v@View{..} = viewSetEnds newX1' newX2' v
         (newX1', newX2') = restrictRange01 .
             translateRange (distance viewX1 (DataX val)) $
             (viewX1, viewX2)
+
+viewZoomIn :: Double -> View ui -> View ui
+viewZoomIn = viewZoomInOn (CanvasX 0.5)
+
+viewZoomInOn :: CanvasX -> Double -> View ui -> View ui
+viewZoomInOn focus mult = viewZoomOutOn focus (1.0/mult)
+
+viewZoomOut :: Double -> View ui -> View ui
+viewZoomOut = viewZoomOutOn (CanvasX 0.5)
 
 viewZoomOutOn :: CanvasX -> Double -> View ui -> View ui
 viewZoomOutOn focus mult v@View{..} = viewSetEnds newX1 newX2' v

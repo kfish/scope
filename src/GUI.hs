@@ -228,17 +228,16 @@ scopeMoveRight ref = scopeModifyUpdate ref viewMoveRight
 ----------------------------------------------------------------
 
 scopeZoomIn :: IORef (Scope ViewCairo) -> Double -> IO ()
-scopeZoomIn ref = scopeZoomInOn ref (CanvasX 0.5)
+scopeZoomIn ref mult = scopeModifyUpdate ref (viewZoomIn mult)
 
 scopeZoomOut :: IORef (Scope ViewCairo) -> Double -> IO ()
-scopeZoomOut ref = scopeZoomOutOn ref (CanvasX 0.5)
+scopeZoomOut ref mult = scopeModifyUpdate ref (viewZoomOut mult)
 
 scopeZoomInOn :: IORef (Scope ViewCairo) -> CanvasX -> Double -> IO ()
-scopeZoomInOn ref focus mult = scopeZoomOutOn ref focus (1.0/mult)
+scopeZoomInOn ref focus mult = scopeModifyUpdate ref (viewZoomInOn focus mult)
 
 scopeZoomOutOn :: IORef (Scope ViewCairo) -> CanvasX -> Double -> IO ()
-scopeZoomOutOn ref focus mult =
-    scopeModifyUpdate ref (viewZoomOutOn focus mult)
+scopeZoomOutOn ref focus mult = scopeModifyUpdate ref (viewZoomOutOn focus mult)
 
 scopeModifyMUpdate :: IORef (Scope ViewCairo)
                    -> (Scope ViewCairo -> IO (Scope ViewCairo))
