@@ -1,24 +1,19 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS -Wall -fno-warn-unused-do-bind -fno-warn-orphans #-}
+{-# OPTIONS -Wall -fno-warn-unused-do-bind #-}
 
 module GUI (
     guiMain
 ) where
 
-import Prelude hiding (catch)
-
 import Control.Applicative ((<$>))
 import Control.Concurrent
-import Control.Monad.CatchIO
 import Control.Monad.Reader
 import Data.IORef
 import Data.Maybe
 import Data.ZoomCache (TimeStamp(..), prettyTimeStamp)
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
-import Graphics.Rendering.Cairo.Internal (Render(..))
-import Graphics.Rendering.Cairo.Types (Cairo)
 import qualified Graphics.Rendering.Cairo.Matrix as M
 
 import Paths_scope as My
@@ -351,12 +346,6 @@ keyDown ref = do
 foreach :: (Monad m) => [a] -> (a -> m b) -> m [b]
 foreach = flip mapM
 
-keepState :: C.Render t -> C.Render ()
-keepState render = do
-  C.save
-  _ <- render
-  C.restore
-
 ----------------------------------------------------------------
 
 plotWindow :: Int -> Int -> Scope ViewCairo -> C.Render ()
@@ -410,36 +399,6 @@ grid xmin xmax ymin ymax =
       do C.moveTo x ymin
          C.lineTo x ymax
          C.stroke
-
-----------------------------------------------------------------------
-
-instance MonadCatchIO C.Render where
-  m `catch` f = mapRender (\m' -> m' `catch` \e -> runRender $ f e) m
-  block       = mapRender block
-  unblock     = mapRender unblock
-
-mapRender :: (ReaderT Cairo IO m1 -> ReaderT Cairo IO m) -> Render m1 -> Render m
-mapRender f = Render . f . runRender
-
-instance ScopeRender C.Render where
-    renderCmds = keepState . mapM_ cairoDrawCmd
-
-----------------------------------------------------------------------
-
-cairoDrawCmd :: DrawCmd -> C.Render ()
-cairoDrawCmd (SetRGB  r g b)   = C.setSourceRGB  r g b
-cairoDrawCmd (SetRGBA r g b a) = C.setSourceRGBA r g b a
-cairoDrawCmd (MoveTo (x,y))    = C.moveTo x y
-
-cairoDrawCmd (LineTo (x,y))    = do
-    C.lineTo x y
-    C.stroke
-
-cairoDrawCmd (FillPoly [])         = return ()
-cairoDrawCmd (FillPoly ((x,y):ps)) = do
-    C.moveTo x y
-    mapM_ (uncurry C.lineTo) ps
-    C.fill
 
 ----------------------------------------------------------------------
 
