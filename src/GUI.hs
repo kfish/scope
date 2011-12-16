@@ -253,7 +253,7 @@ buttonDown ref = do
     liftIO $ do
         vc <- viewUI . view <$> readIORef ref
         cX <- screenToCanvas vc (ScreenX x)
-        modifyIORef ref (scopeModifyView (viewButtonDown cX))
+        scopeModifyUpdate ref (viewButtonDown cX)
 
 buttonRelease :: IORef (Scope ViewCairo) -> G.EventM G.EButton ()
 buttonRelease ref = liftIO $ modifyIORef ref (scopeModifyView viewButtonRelease)
