@@ -228,6 +228,7 @@ data LayerPlot a = LayerMap (LayerMapFunc a) [DrawLayer]
 data Layer a = Layer
     { filename :: FilePath
     , layerTrackNo :: TrackNo
+    , layerBaseUTC :: Maybe UTCTime
     , startTime :: TimeStamp
     , endTime :: TimeStamp
     , convEnee :: forall m . (Functor m, Monad m) => Enumeratee [Stream] [a] m ()

@@ -78,13 +78,17 @@ layersFromFile path = do
                 s = head ss
 
         rawListLayer :: TrackNo -> [Summary Double] -> Layer (TimeStamp, [Double])
-        rawListLayer trackNo ss = Layer path trackNo (summaryEntry s) (summaryExit s)
+        rawListLayer trackNo ss = Layer path trackNo
+            Nothing
+            (summaryEntry s) (summaryExit s)
             enumListDouble (LayerFold (plotRawList (maxRange ss)) plotRawListInit Nothing)
             where
                 s = head ss
 
         sListLayer :: TrackNo -> RGB -> [Summary Double] -> Layer [Summary Double]
-        sListLayer trackNo (r, g, b) ss = Layer path trackNo (summaryEntry s) (summaryExit s)
+        sListLayer trackNo (r, g, b) ss = Layer path trackNo
+            Nothing
+            (summaryEntry s) (summaryExit s)
             (enumSummaryListDouble 1)
             (LayerFold (plotSummaryList (maxRange ss)) (plotSummaryListInit r g b) Nothing)
             where
