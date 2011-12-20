@@ -376,11 +376,15 @@ instance Timelineable UTCTime where
 
 plotTimeline :: Scope ViewCairo -> C.Render ()
 plotTimeline scope = do
-    case (dataToTimeStamp scope viewX1, dataToTimeStamp scope viewX2) of
+    case (dataToUTC scope viewX1, dataToUTC scope viewX2) of
         (Just s, Just e) -> do
             plotAllTicks s e
             plotAllLabels s e
-        _                -> return ()
+        _ ->  case (dataToTimeStamp scope viewX1, dataToTimeStamp scope viewX2) of
+            (Just s, Just e) -> do
+                plotAllTicks s e
+                plotAllLabels s e
+            _                -> return ()
     maybe (return ()) plotArrow pointerX
     where
         View{..} = view scope
