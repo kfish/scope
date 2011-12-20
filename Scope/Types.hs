@@ -202,6 +202,14 @@ mkTSDataTransform (old1, old2) (new1, new2) = Transform m b
         m = toDouble oldW / toDouble newW
         b = fromDouble $ toDouble (distance new1 old1) / toDouble newW
 
+mkUTCDataTransform :: (UTCTime, UTCTime) -> (UTCTime, UTCTime) -> Transform DataX
+mkUTCDataTransform (old1, old2) (new1, new2) = Transform m b
+    where
+        oldW = distance old1 old2
+        newW = distance new1 new2
+        m = toDouble oldW / toDouble newW
+        b = fromDouble $ toDouble (distance new1 old1) / toDouble newW
+
 ----------------------------------------------------------------------
 
 data DrawCmd =
@@ -290,7 +298,7 @@ scopeUpdate :: Maybe (TimeStamp, TimeStamp)
             -> Maybe (UTCTime, UTCTime)
             -> Scope ui -> Scope ui
 scopeUpdate newBounds newUTCBounds scope =
-    (t scope) { bounds = mb , utcBounds = umb }
+    (tUTC scope) { bounds = mb , utcBounds = umb }
     where
         oldBounds = bounds scope
         oldUTCBounds = utcBounds scope
@@ -300,6 +308,11 @@ scopeUpdate newBounds newUTCBounds scope =
                 Just ob -> if oldBounds == mb
                                then id
                                else scopeTransform (mkTSDataTransform ob (fromJust mb))
+                _ -> id
+        tUTC = case oldUTCBounds of
+                Just uob -> if oldUTCBounds == umb
+                               then id
+                               else scopeTransform (mkUTCDataTransform uob (fromJust umb))
                 _ -> id
 
 ----------------------------------------------------------------------

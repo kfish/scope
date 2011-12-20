@@ -18,6 +18,7 @@ module Scope.View (
       timeStampToData
     , dataToTimeStamp
     , timeStampToCanvas
+    , utcToCanvas
 
     , viewStartTime
     , viewEndTime
@@ -44,6 +45,7 @@ module Scope.View (
 ) where
 
 import Data.Maybe (fromJust)
+import Data.Time (UTCTime)
 import Data.ZoomCache
 
 import Scope.Types
@@ -66,6 +68,15 @@ dataToTimeStamp Scope{..} (DataX dX) = fmap dataToTS bounds
         dataToTS :: (TimeStamp, TimeStamp) -> TimeStamp
         dataToTS (TS t1, TS t2) = TS $ t1 + dX * (t2 - t1)
 
+dataToUTC :: Scope ui -> DataX -> Maybe UTCTime
+dataToUTC Scope{..} (DataX dX) = fmap dToUTC utcBounds
+    where
+        dToUTC :: (UTCTime, UTCTime) -> UTCTime
+        dToUTC (u1, u2) = fromDouble $ t1 + dX * (t2 - t1)
+            where
+                t1 = toDouble u1
+                t2 = toDouble u2
+
 timeStampToCanvas :: Scope ui -> TimeStamp -> CanvasX
 timeStampToCanvas scope ts = CanvasX $
     toDouble (distance vt1 ts) / toDouble (distance vt1 vt2)
@@ -73,6 +84,14 @@ timeStampToCanvas scope ts = CanvasX $
         v = view scope
         vt1 = fromJust $ dataToTimeStamp scope (viewX1 v)
         vt2 = fromJust $ dataToTimeStamp scope (viewX2 v)
+
+utcToCanvas :: Scope ui -> UTCTime -> CanvasX
+utcToCanvas scope u = CanvasX $
+    toDouble (distance vt1 u) / toDouble (distance vt1 vt2)
+    where
+        v = view scope
+        vt1 = fromJust $ dataToUTC scope (viewX1 v)
+        vt2 = fromJust $ dataToUTC scope (viewX2 v)
 
 ----------------------------------------------------------------------
 

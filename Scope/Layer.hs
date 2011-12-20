@@ -172,4 +172,10 @@ plotLayer scope (ScopeLayer Layer{..}) =
                 mid (_,x,_) = x
 
         toX :: Timestampable a => a -> Double
-        toX = toDouble . timeStampToCanvas scope . fromJust . timestamp
+        toX = toUTCX
+
+        toTSX :: Timestampable a => a -> Double
+        toTSX = toDouble . timeStampToCanvas scope . fromJust . timestamp
+
+        toUTCX :: Timestampable a => a -> Double
+        toUTCX = toDouble . utcToCanvas scope . utcTimeFromTimeStamp (fromJust layerBaseUTC) . fromJust . timestamp
