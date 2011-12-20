@@ -23,6 +23,7 @@ module Scope.Layer (
 
 import Control.Applicative ((<$>))
 import Control.Monad (replicateM, (>=>))
+import Control.Monad.Trans (lift)
 import Data.Function (on)
 import qualified Data.IntMap as IM
 import qualified Data.Iteratee as I
@@ -161,26 +162,28 @@ plotLayer scope (ScopeLayer Layer{..}) =
         render (LayerMap f) = do
             d0'm <- I.tryHead
             case d0'm of
-                Just d0 -> I.foldM renderMap (toX d0) >> return ()
+                Just d0 -> do
+                    asdf <- I.foldM renderMap (toX d0, repeat [])
+                    lift $ mapM_ renderCmds (snd asdf)
                 Nothing -> return ()
             where
-                renderMap x0 d = do
+                renderMap (x0, prev) d = do
                     let x = toX d
                         cmds = f x0 (x-x0) d
-                    mapM_ renderCmds cmds
-                    return x
+                    return (x, zipWith (++) prev cmds)
         render (LayerFold f b00) = do
             d0'm <- I.tryHead
             case d0'm of
-                Just d0 -> I.foldM renderFold (toX d0, b00) >> return ()
+                Just d0 -> do
+                    asdf <- I.foldM renderFold (toX d0, repeat [], b00)
+                    lift $ mapM_ renderCmds (mid asdf)
                 Nothing -> return ()
             where
-                renderFold (x0, b0) d = do
+                renderFold (x0, prev, b0) d = do
                     let x = toX d
                         (cmds, b) = f x0 (x-x0) b0 d
-                    mapM_ renderCmds cmds
-                    return (x, b)
+                    return (x, zipWith (++) prev cmds, b)
+                mid (_,x,_) = x
 
         toX :: Timestampable a => a -> Double
         toX = toDouble . timeStampToCanvas scope . fromJust . timestamp
-
