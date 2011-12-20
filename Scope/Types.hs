@@ -57,6 +57,7 @@ module Scope.Types (
 
     -- * Drawing commands
     , DrawCmd(..)
+    , DrawLayer
     , ScopeRender(..)
 
     -- * Scope
@@ -200,13 +201,15 @@ class (Functor m, MonadCatchIO m) => ScopeRender m where
 
 ----------------------------------------------------------------------
 
+type DrawLayer = [DrawCmd]
+
 -- | A layer plotting function which is just given the x position and x width
 -- to render the data value of type 'a' into.
-type LayerMapFunc a = Double -> Double -> a -> [DrawCmd]
+type LayerMapFunc a = Double -> Double -> a -> [DrawLayer]
 
 -- | A layer plotting function which is given the x position and x width,
 -- and a previously returned value of type 'b'
-type LayerFoldFunc a b = Double -> Double -> b -> a -> ([DrawCmd], b)
+type LayerFoldFunc a b = Double -> Double -> b -> a -> ([DrawLayer], b)
 
 data LayerPlot a = LayerMap (LayerMapFunc a)
                  | forall b . LayerFold (LayerFoldFunc a b) b

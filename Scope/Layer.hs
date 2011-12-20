@@ -167,7 +167,7 @@ plotLayer scope (ScopeLayer Layer{..}) =
                 renderMap x0 d = do
                     let x = toX d
                         cmds = f x0 (x-x0) d
-                    renderCmds cmds
+                    mapM_ renderCmds cmds
                     return x
         render (LayerFold f b00) = do
             d0'm <- I.tryHead
@@ -178,7 +178,7 @@ plotLayer scope (ScopeLayer Layer{..}) =
                 renderFold (x0, b0) d = do
                     let x = toX d
                         (cmds, b) = f x0 (x-x0) b0 d
-                    renderCmds cmds
+                    mapM_ renderCmds cmds
                     return (x, b)
 
         toX :: Timestampable a => a -> Double
