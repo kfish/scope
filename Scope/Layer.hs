@@ -29,6 +29,7 @@ import qualified Data.IntMap as IM
 import qualified Data.Iteratee as I
 import Data.List (groupBy)
 import Data.Maybe (fromJust)
+import Data.Time.Clock
 import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
 import qualified System.Random.MWC as MWC
@@ -57,37 +58,43 @@ genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
 
 layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
 layersFromFile path = do
-    tracks <- IM.keys . cfSpecs <$> I.fileDriverRandom (iterHeaders standardIdentifiers) path
+    cf <- I.fileDriverRandom (iterHeaders standardIdentifiers) path
+    let base   = baseUTC . cfGlobal $ cf
+        tracks = IM.keys . cfSpecs $ cf
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
-    foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterListLayers t) path) (zip tracks colors)
+    foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterListLayers base t) path)
+                          (zip tracks colors)
     where
         merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
         merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, unionBounds bs1 bs2)
 
-        iterListLayers (trackNo, color) = listLayers trackNo color <$>
+        iterListLayers base (trackNo, color) = listLayers base trackNo color <$>
             wholeTrackSummaryListDouble standardIdentifiers trackNo
 
-        listLayers :: TrackNo -> RGB -> [Summary Double] -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        listLayers trackNo rgb ss = ([ ScopeLayer (rawListLayer trackNo ss)
-                                     , ScopeLayer (sListLayer trackNo rgb ss)
-                                     ]
-                                    , Just (summaryEntry s, summaryExit s))
+        listLayers :: Maybe UTCTime -> TrackNo -> RGB
+                   -> [Summary Double] -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+        listLayers base trackNo rgb ss = ([ ScopeLayer (rawListLayer base trackNo ss)
+                                          , ScopeLayer (sListLayer base trackNo rgb ss)
+                                          ]
+                                         , Just (summaryEntry s, summaryExit s))
             where
                 s = head ss
 
-        rawListLayer :: TrackNo -> [Summary Double] -> Layer (TimeStamp, [Double])
-        rawListLayer trackNo ss = Layer path trackNo
-            Nothing
+        rawListLayer :: Maybe UTCTime -> TrackNo
+                     -> [Summary Double] -> Layer (TimeStamp, [Double])
+        rawListLayer base trackNo ss = Layer path trackNo
+            base
             (summaryEntry s) (summaryExit s)
             enumListDouble (LayerFold (plotRawList (maxRange ss)) plotRawListInit Nothing)
             where
                 s = head ss
 
-        sListLayer :: TrackNo -> RGB -> [Summary Double] -> Layer [Summary Double]
-        sListLayer trackNo (r, g, b) ss = Layer path trackNo
-            Nothing
+        sListLayer :: Maybe UTCTime -> TrackNo -> RGB
+                   -> [Summary Double] -> Layer [Summary Double]
+        sListLayer base trackNo (r, g, b) ss = Layer path trackNo
+            base
             (summaryEntry s) (summaryExit s)
             (enumSummaryListDouble 1)
             (LayerFold (plotSummaryList (maxRange ss)) (plotSummaryListInit r g b) Nothing)
