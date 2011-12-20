@@ -297,19 +297,26 @@ viewTransform tf v@View{..} = v {
 scopeUpdate :: Maybe (TimeStamp, TimeStamp)
             -> Maybe (UTCTime, UTCTime)
             -> Scope ui -> Scope ui
-scopeUpdate newBounds newUTCBounds scope =
-    (tUTC scope) { bounds = mb , utcBounds = umb }
+scopeUpdate newBounds Nothing scope =
+    (t scope) { bounds = mb , utcBounds = Nothing }
     where
         oldBounds = bounds scope
-        oldUTCBounds = utcBounds scope
         mb = unionBounds oldBounds newBounds
-        umb = unionBounds oldUTCBounds newUTCBounds
         t = case oldBounds of
                 Just ob -> if oldBounds == mb
                                then id
                                else scopeTransform (mkTSDataTransform ob (fromJust mb))
                 _ -> id
-        tUTC = case oldUTCBounds of
+
+scopeUpdate newBounds (Just newUTCBounds) scope
+    | (not . null . layers $ scope) && isNothing oldUTCBounds = scopeUpdate newBounds Nothing scope
+    | otherwise = (t scope) { bounds = mb , utcBounds = umb }
+    where
+        oldBounds = bounds scope
+        oldUTCBounds = utcBounds scope
+        mb = unionBounds oldBounds newBounds
+        umb = unionBounds oldUTCBounds (Just newUTCBounds)
+        t = case oldUTCBounds of
                 Just uob -> if oldUTCBounds == umb
                                then id
                                else scopeTransform (mkUTCDataTransform uob (fromJust umb))
