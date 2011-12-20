@@ -99,13 +99,14 @@ layersFromFile path = do
 
         rawListLayer :: TrackNo -> [Summary Double] -> Layer (TimeStamp, [Double])
         rawListLayer trackNo ss = Layer path trackNo (summaryEntry s) (summaryExit s)
-            enumListDouble (LayerFold (plotRawList (maxRange ss)) Nothing)
+            enumListDouble (LayerFold (plotRawList (maxRange ss)) plotRawListInit Nothing)
             where
                 s = head ss
 
         sListLayer :: TrackNo -> RGB -> [Summary Double] -> Layer [Summary Double]
         sListLayer trackNo (r, g, b) ss = Layer path trackNo (summaryEntry s) (summaryExit s)
-            (enumSummaryListDouble 1) (LayerFold (plotSummaryList (maxRange ss) r g b) Nothing)
+            (enumSummaryListDouble 1)
+            (LayerFold (plotSummaryList (maxRange ss)) (plotSummaryListInit r g b) Nothing)
             where
                 s = head ss
 
@@ -159,11 +160,11 @@ plotLayer :: ScopeRender m => Scope ui -> ScopeLayer -> I.Iteratee [Stream] m ()
 plotLayer scope (ScopeLayer Layer{..}) =
     I.joinI . filterTracks [layerTrackNo] . I.joinI . convEnee $ render plotter
     where
-        render (LayerMap f) = do
+        render (LayerMap f initCmds) = do
             d0'm <- I.tryHead
             case d0'm of
                 Just d0 -> do
-                    asdf <- I.foldM renderMap (toX d0, repeat [])
+                    asdf <- I.foldM renderMap (toX d0, initCmds)
                     lift $ mapM_ renderCmds (snd asdf)
                 Nothing -> return ()
             where
@@ -171,11 +172,11 @@ plotLayer scope (ScopeLayer Layer{..}) =
                     let x = toX d
                         cmds = f x0 (x-x0) d
                     return (x, zipWith (++) prev cmds)
-        render (LayerFold f b00) = do
+        render (LayerFold f initCmds b00) = do
             d0'm <- I.tryHead
             case d0'm of
                 Just d0 -> do
-                    asdf <- I.foldM renderFold (toX d0, repeat [], b00)
+                    asdf <- I.foldM renderFold (toX d0, initCmds, b00)
                     lift $ mapM_ renderCmds (mid asdf)
                 Nothing -> return ()
             where

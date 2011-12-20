@@ -211,8 +211,8 @@ type LayerMapFunc a = Double -> Double -> a -> [DrawLayer]
 -- and a previously returned value of type 'b'
 type LayerFoldFunc a b = Double -> Double -> b -> a -> ([DrawLayer], b)
 
-data LayerPlot a = LayerMap (LayerMapFunc a)
-                 | forall b . LayerFold (LayerFoldFunc a b) b
+data LayerPlot a = LayerMap (LayerMapFunc a) [DrawLayer]
+                 | forall b . LayerFold (LayerFoldFunc a b) [DrawLayer] b
 
 data Layer a = Layer
     { filename :: FilePath
