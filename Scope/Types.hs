@@ -49,6 +49,7 @@ module Scope.Types (
     , mkTransform
     , mkTSDataTransform
 
+    , unionBounds
     , translateRange
     , unionRange
     , restrictRange
@@ -63,8 +64,8 @@ module Scope.Types (
     -- * Scope
     , Scope(..)
     , scopeNew
+    , scopeUpdate
     , scopeModifyView
-    , scopeTransform
 
     -- * Views
     , View(..)
@@ -150,6 +151,11 @@ instance Coordinate UTCTime where
 
 utc0 :: UTCTime
 utc0 = UTCTime (toEnum 0) (fromInteger 0)
+
+unionBounds :: Ord a => Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
+unionBounds a         Nothing   = a
+unionBounds Nothing   b         = b
+unionBounds (Just r1) (Just r2) = Just (unionRange r1 r2)
 
 translateRange :: Coordinate a => a -> (a, a) -> (a, a)
 translateRange t (x1, x2) = (translate t x1, translate t x2)
@@ -279,5 +285,21 @@ viewTransform tf v@View{..} = v {
     , viewX2 = transform tf viewX2
     , dragDX = transform tf <$> dragDX
     }
+
+scopeUpdate :: Maybe (TimeStamp, TimeStamp)
+            -> Maybe (UTCTime, UTCTime)
+            -> Scope ui -> Scope ui
+scopeUpdate newBounds newUTCBounds scope =
+    (t scope) { bounds = mb , utcBounds = umb }
+    where
+        oldBounds = bounds scope
+        oldUTCBounds = utcBounds scope
+        mb = unionBounds oldBounds newBounds
+        umb = unionBounds oldUTCBounds newUTCBounds
+        t = case oldBounds of
+                Just ob -> if oldBounds == mb
+                               then id
+                               else scopeTransform (mkTSDataTransform ob (fromJust mb))
+                _ -> id
 
 ----------------------------------------------------------------------

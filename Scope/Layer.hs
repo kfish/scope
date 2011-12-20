@@ -114,27 +114,11 @@ layersFromFile path = do
         yRange :: Summary Double -> Double
         yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
 
-unionBounds :: Ord a => Maybe (a, a) -> Maybe (a, a) -> Maybe (a, a)
-unionBounds a         Nothing   = a
-unionBounds Nothing   b         = b
-unionBounds (Just r1) (Just r2) = Just (unionRange r1 r2)
-
 addLayersFromFile :: FilePath -> Scope ui -> IO (Scope ui)
 addLayersFromFile path scope = do
     (newLayers, newBounds, newUTCBounds) <- layersFromFile path
-    let oldBounds = bounds scope
-        oldUTCBounds = utcBounds scope
-        mb = unionBounds oldBounds newBounds
-        umb = unionBounds oldUTCBounds newUTCBounds
-        t = case oldBounds of
-                Just ob -> if oldBounds == mb
-                               then id
-                               else scopeTransform (mkTSDataTransform ob (fromJust mb))
-                _ -> id
-    return $ (t scope) { layers = layers scope ++ newLayers
-                       , bounds = mb
-                       , utcBounds = umb
-                       }
+    let scope' = scopeUpdate newBounds newUTCBounds scope
+    return $ scope' { layers = layers scope ++ newLayers }
 
 ----------------------------------------------------------------
 
