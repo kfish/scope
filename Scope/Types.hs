@@ -79,6 +79,7 @@ module Scope.Types (
 
 import Control.Applicative ((<$>))
 import Control.Monad.CatchIO
+import Data.Time.Clock
 import Data.Maybe
 import Data.Iteratee (Enumeratee)
 import Data.ZoomCache
@@ -139,6 +140,16 @@ instance Coordinate TimeStamp where
     distance (TS x1) (TS x2) = TS (distance x1 x2)
     translate (TS t) (TS x)  = TS (translate t x)
     transform (Transform m (TS b)) (TS x) = TS (transform (Transform m b) x)
+
+instance Coordinate UTCTime where
+    fromDouble d = addUTCTime (fromRational . toRational $ d) utc0
+    toDouble u = fromRational . toRational $ diffUTCTime u utc0
+    distance u1 u2 = fromDouble (distance (toDouble u1) (toDouble u2))
+    translate t u = fromDouble (translate (toDouble t) (toDouble u))
+    transform (Transform m b) x = fromDouble (transform (Transform m (toDouble b)) (toDouble x))
+
+utc0 :: UTCTime
+utc0 = UTCTime (toEnum 0) (fromInteger 0)
 
 translateRange :: Coordinate a => a -> (a, a) -> (a, a)
 translateRange t (x1, x2) = (translate t x1, translate t x2)
