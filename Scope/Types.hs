@@ -242,6 +242,7 @@ data ScopeLayer = forall a . Timestampable a => ScopeLayer (Layer a)
 data Scope ui = Scope
     { view   :: View ui
     , bounds :: Maybe (TimeStamp, TimeStamp)
+    , utcBounds :: Maybe (UTCTime, UTCTime)
     , layers :: [ScopeLayer]
     }
 
@@ -259,6 +260,7 @@ scopeNew :: ui -> Scope ui
 scopeNew ui = Scope {
       view = viewInit ui
     , bounds = Nothing
+    , utcBounds = Nothing
     , layers = []
     }
 

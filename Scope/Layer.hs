@@ -56,7 +56,7 @@ genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
 
 ----------------------------------------------------------------------
 
-layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
 layersFromFile path = do
     cf <- I.fileDriverRandom (iterHeaders standardIdentifiers) path
     let base   = baseUTC . cfGlobal $ cf
@@ -65,22 +65,29 @@ layersFromFile path = do
     foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterListLayers base t) path)
                           (zip tracks colors)
     where
-        merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, unionBounds bs1 bs2)
+        merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
+              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
+              -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
+        merge (ls1, bs1, ubs1) (ls2, bs2, ubs2) =
+            (ls1 ++ ls2, unionBounds bs1 bs2, unionBounds ubs1 ubs2)
 
         iterListLayers base (trackNo, color) = listLayers base trackNo color <$>
             wholeTrackSummaryListDouble standardIdentifiers trackNo
 
-        listLayers :: Maybe UTCTime -> TrackNo -> RGB
-                   -> [Summary Double] -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
+        listLayers :: Maybe UTCTime -> TrackNo -> RGB -> [Summary Double]
+                   -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
         listLayers base trackNo rgb ss = ([ ScopeLayer (rawListLayer base trackNo ss)
                                           , ScopeLayer (sListLayer base trackNo rgb ss)
                                           ]
-                                         , Just (summaryEntry s, summaryExit s))
+                                         , Just (entry, exit)
+                                         , utcBounds (entry, exit) <$> base)
             where
                 s = head ss
+                entry = summaryEntry s
+                exit = summaryExit s
+                utcBounds (t1, t2) b = (ub t1, ub t2)
+                    where
+                        ub = utcTimeFromTimeStamp b
 
         rawListLayer :: Maybe UTCTime -> TrackNo
                      -> [Summary Double] -> Layer (TimeStamp, [Double])
@@ -114,9 +121,11 @@ unionBounds (Just r1) (Just r2) = Just (unionRange r1 r2)
 
 addLayersFromFile :: FilePath -> Scope ui -> IO (Scope ui)
 addLayersFromFile path scope = do
-    (newLayers, newBounds) <- layersFromFile path
+    (newLayers, newBounds, newUTCBounds) <- layersFromFile path
     let oldBounds = bounds scope
+        oldUTCBounds = utcBounds scope
         mb = unionBounds oldBounds newBounds
+        umb = unionBounds oldUTCBounds newUTCBounds
         t = case oldBounds of
                 Just ob -> if oldBounds == mb
                                then id
@@ -124,6 +133,7 @@ addLayersFromFile path scope = do
                 _ -> id
     return $ (t scope) { layers = layers scope ++ newLayers
                        , bounds = mb
+                       , utcBounds = umb
                        }
 
 ----------------------------------------------------------------
