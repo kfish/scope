@@ -70,6 +70,7 @@ Library
     MonadCatchIO-transformers >  0.2     && < 0.3,
     mtl                       >= 2.0.0.0 && < 3,
     mwc-random,
+    old-locale,
     time,
     zoom-cache                >= 0.9.1.0 && < 0.10
 
@@ -102,6 +103,7 @@ Executable scope
     MonadCatchIO-transformers >  0.2     && < 0.3,
     mtl                       >= 2.0.0.0 && < 3,
     mwc-random,
+    old-locale,
     time,
     zoom-cache                >= 0.9.1.0 && < 0.10
 

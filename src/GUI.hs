@@ -11,10 +11,12 @@ import Control.Concurrent
 import Control.Monad.Reader
 import Data.IORef
 import Data.Maybe
+import Data.Time (UTCTime, formatTime)
 import Data.ZoomCache (TimeStamp(..), prettyTimeStamp)
 import qualified Graphics.UI.Gtk as G
 import qualified Graphics.Rendering.Cairo as C
 import qualified Graphics.Rendering.Cairo.Matrix as M
+import System.Locale (defaultTimeLocale)
 
 import Paths_scope as My
 import Scope.Layer
@@ -360,6 +362,18 @@ plotCursor scope = maybe (return ()) f pointerX
 
 ----------------------------------------------------------------------
 
+class Coordinate a => Timelineable a where
+    timeLabel :: a -> String
+    toCanvas :: Scope ui -> a -> CanvasX
+
+instance Timelineable TimeStamp where
+    timeLabel = prettyTimeStamp
+    toCanvas = timeStampToCanvas
+
+instance Timelineable UTCTime where
+    timeLabel = formatTime defaultTimeLocale "%Y-%m-%d %T"
+    toCanvas = utcToCanvas
+
 plotTimeline :: Scope ViewCairo -> C.Render ()
 plotTimeline scope = do
     case (dataToTimeStamp scope viewX1, dataToTimeStamp scope viewX2) of
@@ -371,7 +385,7 @@ plotTimeline scope = do
     where
         View{..} = view scope
 
-        plotAllTicks :: TimeStamp -> TimeStamp -> C.Render ()
+        plotAllTicks :: Timelineable a => a -> a -> C.Render ()
         plotAllTicks s e = do
             plotTicks 0.001 0.05 s e
             plotTicks 0.01 0.1 s e
@@ -381,40 +395,47 @@ plotTimeline scope = do
             plotTicks 0.08 60.0 s e
             plotTicks 0.10 3600.0 s e
 
-        plotTicks :: Double -> Double -> TimeStamp -> TimeStamp -> C.Render ()
-        plotTicks len step (TS start) (TS end) =
-            when doDraw $ mapM_ (plotTick len) (map TS [s, s+step .. end])
+        plotTicks :: Timelineable a => Double -> Double -> a -> a -> C.Render ()
+        plotTicks len step start end =
+            when doDraw $ mapM_ (plotTick len start) (map fromDouble [s, s+step .. end'])
             where
-                doDraw = (end - start) / step < 100
-                s = (fromIntegral (floor (start/step) :: Integer)) * step
+                doDraw = (end' - start') / step < 100
+                s = (fromIntegral (floor (start'/step) :: Integer)) * step
+                start' = toDouble start
+                end' = toDouble end
 
-        plotTick :: Double -> TimeStamp -> C.Render ()
-        plotTick len ts = do
-            let (CanvasX cX) = timeStampToCanvas scope ts
+        plotTick :: Timelineable a => Double -> a -> a -> C.Render ()
+        plotTick len _unify ts = do
+            let (CanvasX cX) = toCanvas scope ts
             C.setSourceRGBA 0 0 0 1.0
             C.moveTo cX 0.90
             C.lineTo cX (0.90 + len)
             C.stroke
 
-        plotAllLabels :: TimeStamp -> TimeStamp -> C.Render ()
-        plotAllLabels (TS start) (TS end) =
-            mapM_ (\s -> plotLabels s (TS start) (TS end)) steps
+        plotAllLabels :: Timelineable a => a -> a -> C.Render ()
+        plotAllLabels start end =
+            mapM_ (\s -> plotLabels s start end) steps
             where
-                readable x = let viz = (end - start) / x in (viz < 5 && viz >= 1)
+                readable x = let viz = (end' - start') / x in (viz < 5 && viz >= 1)
                 steps = take 1 . filter readable $ [3600, 60, 10, 5, 1, 0.1, 0.05]
+                start' = toDouble start
+                end' = toDouble end
 
-        plotLabels :: Double -> TimeStamp -> TimeStamp -> C.Render ()
-        plotLabels step (TS start) (TS end) = keepState $ do
+        plotLabels :: Timelineable a => Double -> a -> a -> C.Render ()
+        plotLabels step start end = keepState $ do
             let flipY = M.Matrix 1 0 0 (-2.2) 0 0
             C.transform flipY
 
-            let s = (fromIntegral (floor (start/step) :: Integer)) * step
-            mapM_ (plotLabel . TS) [s, s+step .. end]
+            let s = (fromIntegral (floor (start'/step) :: Integer)) * step
+            mapM_ (plotLabel start . fromDouble) [s, s+step .. end']
+            where
+                start' = toDouble start
+                end' = toDouble end
 
-        plotLabel :: TimeStamp -> C.Render ()
-        plotLabel ts = do
-            let CanvasX cX = timeStampToCanvas scope ts
-            drawString (prettyTimeStamp ts) cX (-0.44)
+        plotLabel :: Timelineable a => a -> a -> C.Render ()
+        plotLabel _unify ts = do
+            let CanvasX cX = toCanvas scope ts
+            drawString (timeLabel ts) cX (-0.44)
 
 drawString :: String -> Double -> Double -> C.Render ()
 drawString s x y = do

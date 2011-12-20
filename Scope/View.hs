@@ -18,6 +18,7 @@ module Scope.View (
       timeStampToData
     , dataToTimeStamp
     , timeStampToCanvas
+    , dataToUTC
     , utcToCanvas
 
     , viewStartTime
