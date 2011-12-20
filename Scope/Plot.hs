@@ -29,9 +29,6 @@ import Scope.Types hiding (b)
 ----------------------------------------------------------------------
 -- Raw data
 
-_plotRaw :: Double -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
-_plotRaw yR = plotRaw1 (\y -> y * 2.0 / yR)
-
 plotRawListInit :: [DrawLayer]
 plotRawListInit = repeat []
 
@@ -62,10 +59,6 @@ plotRaw1 f x w (Just y0) (_ts, y) = (cmds, Just y')
 
 ----------------------------------------------------------------------
 -- Summary data
-
-_plotSummary :: Double
-             -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
-_plotSummary dYRange = plotSummary1 (\v -> v * 4.0 / dYRange)
 
 plotSummaryListInit :: Double -> Double -> Double -> [DrawLayer]
 plotSummaryListInit r g b = concat $ repeat

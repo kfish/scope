@@ -59,32 +59,12 @@ layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
 layersFromFile path = do
     tracks <- IM.keys . cfSpecs <$> I.fileDriverRandom (iterHeaders standardIdentifiers) path
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
-    -- foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterLayers t) path) (zip tracks colors)
     foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterListLayers t) path) (zip tracks colors)
     where
         merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
               -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
         merge (ls1, bs1) (ls2, bs2) = (ls1 ++ ls2, unionBounds bs1 bs2)
-
-{-
-        iterLayers (trackNo, color) = layers trackNo color <$>
-            wholeTrackSummaryListDouble standardIdentifiers trackNo
-
-        layers :: TrackNo -> RGB -> Summary Double -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp))
-        layers trackNo rgb s = ([ ScopeLayer (rawLayer trackNo s)
-                                , ScopeLayer (sLayer trackNo rgb s)
-                                ]
-                               , Just (summaryEntry s, summaryExit s))
-
-        rawLayer :: TrackNo -> Summary Double -> Layer (TimeStamp, Double)
-        rawLayer trackNo s = Layer path trackNo (summaryEntry s) (summaryExit s)
-            enumDouble (LayerFold (plotRaw (yRange s)) Nothing)
-
-        sLayer :: TrackNo -> RGB -> Summary Double -> Layer (Summary Double)
-        sLayer trackNo (r, g, b) s = Layer path trackNo (summaryEntry s) (summaryExit s)
-            (enumSummaryDouble 1) (LayerFold (plotSummary (yRange s) r g b) Nothing)
--}
 
         iterListLayers (trackNo, color) = listLayers trackNo color <$>
             wholeTrackSummaryListDouble standardIdentifiers trackNo
