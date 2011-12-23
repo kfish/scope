@@ -21,6 +21,8 @@ module Scope.View (
     , dataToUTC
     , utcToCanvas
 
+    , viewStartUTC
+    , viewEndUTC
     , viewStartTime
     , viewEndTime
     , viewDuration
@@ -95,6 +97,12 @@ utcToCanvas scope u = CanvasX $
         vt2 = fromJust $ dataToUTC scope (viewX2 v)
 
 ----------------------------------------------------------------------
+
+viewStartUTC :: Scope ui -> View ui -> Maybe UTCTime
+viewStartUTC scope View{..} = dataToUTC scope viewX1
+
+viewEndUTC :: Scope ui -> View ui -> Maybe UTCTime
+viewEndUTC scope View{..} = dataToUTC scope viewX2
 
 viewStartTime :: Scope ui -> View ui -> Maybe TimeStamp
 viewStartTime scope View{..} = dataToTimeStamp scope viewX1
