@@ -21,14 +21,14 @@ module Scope.Layer (
     , plotLayers
 ) where
 
-import Control.Applicative ((<$>))
-import Control.Monad (replicateM, (>=>))
+import Control.Applicative ((<$>), (<*>), (<|>))
+import Control.Monad (join, replicateM, (>=>))
 import Control.Monad.Trans (lift)
 import Data.Function (on)
 import qualified Data.IntMap as IM
 import qualified Data.Iteratee as I
 import Data.List (groupBy)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, listToMaybe)
 import Data.Time.Clock
 import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
@@ -134,12 +134,20 @@ plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope ui -> m ()
 plotFileLayers path layers scope =
     flip I.fileDriverRandom path $ do
         I.joinI $ enumCacheFile identifiers $ do
-            seekTimeStamp (viewStartTime scope (view scope))
-            I.joinI . (I.takeWhileE (before (viewEndTime scope v)) >=> I.take 1) $ I.sequence_ is
+            seekTimeStamp seekStart
+            I.joinI . (I.takeWhileE (before seekEnd) >=> I.take 1) $ I.sequence_ is
     where
         v = view scope
         identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
+
+        seekStart = ts (viewStartUTC scope v) <|> viewStartTime scope v
+        seekEnd = ts (viewEndUTC scope v) <|> viewEndTime scope v
+
+        ts = (timeStampFromUTCTime <$> base <*>)
+        base :: Maybe UTCTime
+        base = join . listToMaybe $ lBase <$> take 1 layers
+        lBase (ScopeLayer l) = layerBaseUTC l
 
 plotLayer :: ScopeRender m => Scope ui -> ScopeLayer -> I.Iteratee [Stream] m ()
 plotLayer scope (ScopeLayer Layer{..}) =
