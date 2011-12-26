@@ -1,7 +1,7 @@
 {-# OPTIONS -Wall -fno-warn-orphans #-}
 ----------------------------------------------------------------------
 {- |
-   Module      : Scope.Plot
+   Module      : Scope.Numeric.IEEE754
    Copyright   : Conrad Parker
    License     : BSD3-style (see LICENSE)
 
@@ -12,7 +12,7 @@
    Scope plotting functions
 -}
 
-module Scope.Plot (
+module Scope.Numeric.IEEE754 (
 ) where
 
 import Control.Arrow (second)

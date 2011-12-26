@@ -34,7 +34,7 @@ import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
 import qualified System.Random.MWC as MWC
 
-import Scope.Plot()
+import Scope.Numeric.IEEE754()
 import Scope.Types hiding (b)
 import Scope.View
 

@@ -77,7 +77,7 @@ Library
   Exposed-modules:
     Scope.Cairo
     Scope.Layer
-    Scope.Plot
+    Scope.Numeric.IEEE754
     Scope.Types
     Scope.View
 
