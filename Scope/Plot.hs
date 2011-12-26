@@ -1,4 +1,4 @@
-{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wall -fno-warn-orphans #-}
 ----------------------------------------------------------------------
 {- |
    Module      : Scope.Plot
@@ -13,10 +13,6 @@
 -}
 
 module Scope.Plot (
-      plotRawListInit
-    , plotRawList
-    , plotSummaryListInit
-    , plotSummaryList
 ) where
 
 import Control.Arrow (second)
@@ -27,14 +23,24 @@ import Data.ZoomCache.Numeric
 import Scope.Types hiding (b)
 
 ----------------------------------------------------------------------
+
+instance ScopePlot Double where
+    rawLayerPlot = rawLayerPlotListDouble
+    summaryLayerPlot = summaryLayerPlotListDouble
+
+----------------------------------------------------------------------
 -- Raw data
 
-plotRawListInit :: [DrawLayer]
-plotRawListInit = repeat []
+rawLayerPlotListDouble :: Double -> RGB -> LayerPlot (TimeStamp, [Double])
+rawLayerPlotListDouble maxRange _rgb =
+    LayerFold (plotRawListDouble maxRange) plotRawListInitDouble Nothing
 
-plotRawList :: Double -> LayerFoldFunc (TimeStamp, [Double]) (Maybe [Double])
-plotRawList yRange x w Nothing (ts, ys) = plotRawList yRange x w (Just ys) (ts, ys)
-plotRawList yRange x w (Just ys0) (ts, ys) =
+plotRawListInitDouble :: [DrawLayer]
+plotRawListInitDouble = repeat []
+
+plotRawListDouble :: Double -> LayerFoldFunc (TimeStamp, [Double]) (Maybe [Double])
+plotRawListDouble yRange x w Nothing (ts, ys) = plotRawListDouble yRange x w (Just ys) (ts, ys)
+plotRawListDouble yRange x w (Just ys0) (ts, ys) =
     second Just $ foldl c ([], []) $ map f (zip3 (map yFunc [0..]) ys0 ys)
     where
         c :: ([a], [b]) -> ([a], b) -> ([a], [b])
@@ -44,11 +50,11 @@ plotRawList yRange x w (Just ys0) (ts, ys) =
         yStep = 2.0 / fromIntegral l
         yFunc n v = (-1.0) + (n * yStep) + ((0.5) * yStep) + (v * yStep / yRange)
         f :: ((Double -> Double), Double, Double) -> ([DrawLayer], Double)
-        f (y, s0, s) = second fromJust $ plotRaw1 y x w (Just s0) (ts, s)
+        f (y, s0, s) = second fromJust $ plotRaw1Double y x w (Just s0) (ts, s)
 
-plotRaw1 :: (Double -> Double) -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
-plotRaw1 f x w Nothing (ts, y) = plotRaw1 f x w (Just y) (ts, y)
-plotRaw1 f x w (Just y0) (_ts, y) = (cmds, Just y')
+plotRaw1Double :: (Double -> Double) -> LayerFoldFunc (TimeStamp, Double) (Maybe Double)
+plotRaw1Double f x w Nothing (ts, y) = plotRaw1Double f x w (Just y) (ts, y)
+plotRaw1Double f x w (Just y0) (_ts, y) = (cmds, Just y')
     where
         cmds =
             [ [ MoveTo (x,   y0)
@@ -60,17 +66,21 @@ plotRaw1 f x w (Just y0) (_ts, y) = (cmds, Just y')
 ----------------------------------------------------------------------
 -- Summary data
 
-plotSummaryListInit :: Double -> Double -> Double -> [DrawLayer]
-plotSummaryListInit r g b = concat $ repeat
+summaryLayerPlotListDouble :: Double -> RGB -> LayerPlot [Summary Double]
+summaryLayerPlotListDouble maxRange rgb =
+    LayerFold (plotSummaryListDouble maxRange) (plotSummaryListInitDouble rgb) Nothing
+
+plotSummaryListInitDouble :: RGB -> [DrawLayer]
+plotSummaryListInitDouble (r, g, b) = concat $ repeat
     [ [ SetRGBA r g b 0.3 ]
     , [ SetRGB (r*0.6) (g*0.6) (b*0.6) ]
     ]
 
-plotSummaryList :: Double
-                -> LayerFoldFunc [Summary Double] (Maybe [Summary Double])
-plotSummaryList dYRange x w Nothing ss =
-    plotSummaryList dYRange x w (Just ss) ss
-plotSummaryList dYRange x w (Just ss0) ss = do
+plotSummaryListDouble :: Double
+                      -> LayerFoldFunc [Summary Double] (Maybe [Summary Double])
+plotSummaryListDouble dYRange x w Nothing ss =
+    plotSummaryListDouble dYRange x w (Just ss) ss
+plotSummaryListDouble dYRange x w (Just ss0) ss = do
     second Just $ foldl c ([], []) $ map f (zip3 (map yFunc [0..]) ss0 ss)
     where
         c :: ([a], [b]) -> ([a], b) -> ([a], [b])
@@ -80,14 +90,14 @@ plotSummaryList dYRange x w (Just ss0) ss = do
         yStep = 2.0 / fromIntegral l
         yFunc n v = (-1.0) + (n * yStep) + ((0.5) * yStep) + (v * yStep / dYRange)
         f :: ((Double -> Double), Summary Double, Summary Double) -> ([DrawLayer], Summary Double)
-        f (y, s0, s) = second fromJust $ plotSummary1 y x w (Just s0) s
+        f (y, s0, s) = second fromJust $ plotSummary1Double y x w (Just s0) s
 
 -- | Plot one numeric summary
-plotSummary1 :: (Double -> Double)
-            -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
-plotSummary1 y x w Nothing s =
-    plotSummary1 y x w (Just s) s
-plotSummary1 y x w (Just s0) s = (cmds, Just s)
+plotSummary1Double :: (Double -> Double)
+                   -> LayerFoldFunc (Summary Double) (Maybe (Summary Double))
+plotSummary1Double y x w Nothing s =
+    plotSummary1Double y x w (Just s) s
+plotSummary1Double y x w (Just s0) s = (cmds, Just s)
     where
         cmds =
             [ [ FillPoly [ (x,     y (numMax sd0))

@@ -57,9 +57,12 @@ module Scope.Types (
     , zoomRange
 
     -- * Drawing commands
+    , RGB
     , DrawCmd(..)
     , DrawLayer
     , ScopeRender(..)
+
+    , ScopePlot(..)
 
     -- * Scope
     , Scope(..)
@@ -212,6 +215,8 @@ mkUTCDataTransform (old1, old2) (new1, new2) = Transform m b
 
 ----------------------------------------------------------------------
 
+type RGB = (Double, Double, Double)
+
 data DrawCmd =
       SetRGB   Double Double Double
     | SetRGBA  Double Double Double Double
@@ -250,6 +255,12 @@ data Layer a = Layer
     }
 
 data ScopeLayer = forall a . Timestampable a => ScopeLayer (Layer a)
+
+----------------------------------------------------------------------
+
+class ScopePlot a where
+    rawLayerPlot :: a -> RGB -> LayerPlot (TimeStamp, [a])
+    summaryLayerPlot :: a -> RGB -> LayerPlot [Summary a]
 
 ----------------------------------------------------------------------
 

@@ -34,14 +34,12 @@ import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
 import qualified System.Random.MWC as MWC
 
-import Scope.Plot
+import Scope.Plot()
 import Scope.Types hiding (b)
 import Scope.View
 
 ----------------------------------------------------------------------
 -- Random, similar colors
-
-type RGB = (Double, Double, Double)
 
 genColor :: RGB -> Double -> MWC.GenIO -> IO RGB
 genColor (r, g, b) a gen = do
@@ -94,17 +92,18 @@ layersFromFile path = do
         rawListLayer base trackNo ss = Layer path trackNo
             base
             (summaryEntry s) (summaryExit s)
-            enumListDouble (LayerFold (plotRawList (maxRange ss)) plotRawListInit Nothing)
+            enumListDouble
+            (rawLayerPlot (maxRange ss) (0,0,0))
             where
                 s = head ss
 
         sListLayer :: Maybe UTCTime -> TrackNo -> RGB
                    -> [Summary Double] -> Layer [Summary Double]
-        sListLayer base trackNo (r, g, b) ss = Layer path trackNo
+        sListLayer base trackNo rgb ss = Layer path trackNo
             base
             (summaryEntry s) (summaryExit s)
             (enumSummaryListDouble 1)
-            (LayerFold (plotSummaryList (maxRange ss)) (plotSummaryListInit r g b) Nothing)
+            (summaryLayerPlot (maxRange ss) rgb)
             where
                 s = head ss
 
