@@ -250,7 +250,7 @@ data Layer a = Layer
     , layerBaseUTC :: Maybe UTCTime
     , startTime :: TimeStamp
     , endTime :: TimeStamp
-    , convEnee :: forall m . (Functor m, Monad m) => Enumeratee [Stream] [a] m ()
+    , convEnee :: forall m . (Functor m, Monad m) => Enumeratee [Block] [a] m ()
     , plotter :: LayerPlot a
     }
 

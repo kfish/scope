@@ -148,7 +148,7 @@ plotFileLayers path layers scope =
         base = join . listToMaybe $ lBase <$> take 1 layers
         lBase (ScopeLayer l) = layerBaseUTC l
 
-plotLayer :: ScopeRender m => Scope ui -> ScopeLayer -> I.Iteratee [Stream] m ()
+plotLayer :: ScopeRender m => Scope ui -> ScopeLayer -> I.Iteratee [Block] m ()
 plotLayer scope (ScopeLayer Layer{..}) =
     I.joinI . filterTracks [layerTrackNo] . I.joinI . convEnee $ render plotter
     where
