@@ -86,6 +86,7 @@ import Control.Monad.CatchIO
 import Data.Time.Clock
 import Data.Maybe
 import Data.Iteratee (Enumeratee)
+import Data.Offset
 import Data.ZoomCache
 
 ----------------------------------------------------------------------
@@ -250,7 +251,7 @@ data Layer a = Layer
     , layerBaseUTC :: Maybe UTCTime
     , startTime :: TimeStamp
     , endTime :: TimeStamp
-    , convEnee :: forall m . (Functor m, Monad m) => Enumeratee [Block] [a] m ()
+    , convEnee :: forall m . (Functor m, Monad m) => Enumeratee [Offset Block] [a] m ()
     , plotter :: LayerPlot a
     }
 

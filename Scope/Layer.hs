@@ -27,8 +27,10 @@ import Control.Monad.Trans (lift)
 import Data.Function (on)
 import qualified Data.IntMap as IM
 import qualified Data.Iteratee as I
+import qualified Data.Iteratee.IO.OffsetFd as OffI
 import Data.List (groupBy)
 import Data.Maybe (fromJust, listToMaybe)
+import Data.Offset
 import Data.Time.Clock
 import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
@@ -56,11 +58,11 @@ genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
 
 layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
 layersFromFile path = do
-    cf <- I.fileDriverRandom (iterHeaders standardIdentifiers) path
+    cf <- OffI.fileDriverRandomOBS (iterHeaders standardIdentifiers) path
     let base   = baseUTC . cfGlobal $ cf
         tracks = IM.keys . cfSpecs $ cf
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
-    foldl1 merge <$> mapM (\t -> I.fileDriverRandom (iterListLayers base t) path)
+    foldl1 merge <$> mapM (\t -> OffI.fileDriverRandomOBS (iterListLayers base t) path)
                           (zip tracks colors)
     where
         merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
@@ -131,7 +133,7 @@ plotLayers scope = mapM_ f layersByFile
 
 plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope ui -> m ()
 plotFileLayers path layers scope =
-    flip I.fileDriverRandom path $ do
+    flip OffI.fileDriverRandomOBS path $ do
         I.joinI $ enumCacheFile identifiers $ do
             seekTimeStamp seekStart
             I.joinI . (I.takeWhileE (before seekEnd) >=> I.take 1) $ I.sequence_ is
@@ -148,7 +150,7 @@ plotFileLayers path layers scope =
         base = join . listToMaybe $ lBase <$> take 1 layers
         lBase (ScopeLayer l) = layerBaseUTC l
 
-plotLayer :: ScopeRender m => Scope ui -> ScopeLayer -> I.Iteratee [Block] m ()
+plotLayer :: ScopeRender m => Scope ui -> ScopeLayer -> I.Iteratee [Offset Block] m ()
 plotLayer scope (ScopeLayer Layer{..}) =
     I.joinI . filterTracks [layerTrackNo] . I.joinI . convEnee $ render plotter
     where
