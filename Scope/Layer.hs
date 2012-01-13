@@ -87,9 +87,11 @@ layersFromFile path = do
                     where
                         ub = utcTimeFromTimeStamp b
 
+        file = ScopeFile path
+
         rawListLayer :: Maybe UTCTime -> TrackNo
                      -> [Summary Double] -> Layer (TimeStamp, [Double])
-        rawListLayer base trackNo ss = Layer path trackNo
+        rawListLayer base trackNo ss = Layer file trackNo
             base
             (summaryEntry s) (summaryExit s)
             enumListDouble
@@ -99,7 +101,7 @@ layersFromFile path = do
 
         sListLayer :: Maybe UTCTime -> TrackNo -> RGB
                    -> [Summary Double] -> Layer [Summary Double]
-        sListLayer base trackNo rgb ss = Layer path trackNo
+        sListLayer base trackNo rgb ss = Layer file trackNo
             base
             (summaryEntry s) (summaryExit s)
             (enumSummaryListDouble 1)
@@ -127,7 +129,7 @@ plotLayers scope = mapM_ f layersByFile
         f :: ScopeRender m => [ScopeLayer] -> m ()
         f ls = plotFileLayers (fn . head $ ls) ls scope
         layersByFile = groupBy ((==) `on` fn) (layers scope)
-        fn (ScopeLayer l) = filename l
+        fn (ScopeLayer l) = filename . layerFile $ l
 
 plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope ui -> m ()
 plotFileLayers path layers scope = when (any visible layers) $

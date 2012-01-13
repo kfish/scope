@@ -65,6 +65,7 @@ module Scope.Types (
     , ScopePlot(..)
 
     -- * Scope
+    , ScopeFile(..)
     , Scope(..)
     , scopeNew
     , scopeUpdate
@@ -231,6 +232,12 @@ class (Functor m, MonadCatchIO m) => ScopeRender m where
 
 ----------------------------------------------------------------------
 
+data ScopeFile = ScopeFile
+    { filename :: FilePath
+    }
+
+----------------------------------------------------------------------
+
 type DrawLayer = [DrawCmd]
 
 -- | A layer plotting function which is just given the x position and x width
@@ -245,7 +252,7 @@ data LayerPlot a = LayerMap (LayerMapFunc a) [DrawLayer]
                  | forall b . LayerFold (LayerFoldFunc a b) [DrawLayer] b
 
 data Layer a = Layer
-    { filename :: FilePath
+    { layerFile :: ScopeFile
     , layerTrackNo :: TrackNo
     , layerBaseUTC :: Maybe UTCTime
     , startTime :: TimeStamp
