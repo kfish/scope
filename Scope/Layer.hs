@@ -22,7 +22,7 @@ module Scope.Layer (
 ) where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
-import Control.Monad (join, replicateM, (>=>))
+import Control.Monad (join, replicateM, when, (>=>))
 import Control.Monad.Trans (lift)
 import Data.Function (on)
 import qualified Data.IntMap as IM
@@ -130,7 +130,7 @@ plotLayers scope = mapM_ f layersByFile
         fn (ScopeLayer l) = filename l
 
 plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope ui -> m ()
-plotFileLayers path layers scope =
+plotFileLayers path layers scope = when (any visible layers) $
     flip I.fileDriverRandom path $ do
         I.joinI $ enumCacheFile identifiers $ do
             seekTimeStamp seekStart
@@ -139,6 +139,10 @@ plotFileLayers path layers scope =
         v = view scope
         identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
+
+        visible (ScopeLayer Layer{..}) =
+            maybe False (< endTime) seekStart &&
+            maybe False (> startTime) seekEnd
 
         seekStart = ts (viewStartUTC scope v) <|> viewStartTime scope v
         seekEnd = ts (viewEndUTC scope v) <|> viewEndTime scope v
