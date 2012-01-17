@@ -88,6 +88,7 @@ import Data.Time.Clock
 import Data.Maybe
 import Data.Iteratee (Enumeratee)
 import Data.ZoomCache
+import System.Posix
 
 ----------------------------------------------------------------------
 
@@ -230,10 +231,15 @@ data DrawCmd =
 class (Functor m, MonadCatchIO m) => ScopeRender m where
     renderCmds :: [DrawCmd] -> m ()
 
+instance ScopeRender IO where
+    renderCmds = const (return ())
+
 ----------------------------------------------------------------------
 
 data ScopeFile = ScopeFile
     { filename :: FilePath
+    , fd       :: Fd
+    , scopeCF  :: CacheFile
     }
 
 ----------------------------------------------------------------------
