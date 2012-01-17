@@ -22,8 +22,9 @@ module Scope.Layer (
 ) where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
-import Control.Monad (join, replicateM, (>=>))
+import Control.Monad (join, replicateM, when, (>=>))
 import Control.Monad.Trans (lift)
+import Data.ByteString (ByteString)
 import Data.Function (on)
 import qualified Data.IntMap as IM
 import qualified Data.Iteratee as I
@@ -34,6 +35,7 @@ import Data.Offset
 import Data.Time.Clock
 import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
+import System.Posix
 import qualified System.Random.MWC as MWC
 
 import Scope.Numeric.IEEE754()
@@ -56,13 +58,25 @@ genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
 
 ----------------------------------------------------------------------
 
-layersFromFile :: FilePath -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
-layersFromFile path = do
-    cf <- OffI.fileDriverRandomOBS (iterHeaders standardIdentifiers) path
-    let base   = baseUTC . cfGlobal $ cf
-        tracks = IM.keys . cfSpecs $ cf
+scopeBufSize :: Int
+scopeBufSize = 1024
+
+openScopeFile :: FilePath -> IO ScopeFile
+openScopeFile path = do
+    fd <- openFd path ReadOnly Nothing defaultFileFlags
+    let f = ScopeFile path fd undefined
+    cf <- scopeEnum f (iterHeaders standardIdentifiers)
+    return f{scopeCF = cf}
+
+scopeEnum :: ScopeRender m => ScopeFile -> I.Iteratee (Offset ByteString) m a -> m a
+scopeEnum ScopeFile{..} iter = OffI.enumFdRandomOBS scopeBufSize fd iter >>= I.run
+
+layersFromFile :: ScopeFile -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
+layersFromFile file@ScopeFile{..} = do
+    let base   = baseUTC . cfGlobal $ scopeCF
+        tracks = IM.keys . cfSpecs $ scopeCF
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
-    foldl1 merge <$> mapM (\t -> OffI.fileDriverRandomOBS (iterListLayers base t) path)
+    foldl1 merge <$> mapM (\t -> scopeEnum file (I.joinI $ enumBlock scopeCF $ iterListLayers base t))
                           (zip tracks colors)
     where
         merge :: ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
@@ -72,7 +86,7 @@ layersFromFile path = do
             (ls1 ++ ls2, unionBounds bs1 bs2, unionBounds ubs1 ubs2)
 
         iterListLayers base (trackNo, color) = listLayers base trackNo color <$>
-            wholeTrackSummaryListDouble standardIdentifiers trackNo
+            wholeTrackSummaryListDouble trackNo
 
         listLayers :: Maybe UTCTime -> TrackNo -> RGB -> [Summary Double]
                    -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
@@ -91,7 +105,7 @@ layersFromFile path = do
 
         rawListLayer :: Maybe UTCTime -> TrackNo
                      -> [Summary Double] -> Layer (TimeStamp, [Double])
-        rawListLayer base trackNo ss = Layer path trackNo
+        rawListLayer base trackNo ss = Layer file trackNo
             base
             (summaryEntry s) (summaryExit s)
             enumListDouble
@@ -101,7 +115,7 @@ layersFromFile path = do
 
         sListLayer :: Maybe UTCTime -> TrackNo -> RGB
                    -> [Summary Double] -> Layer [Summary Double]
-        sListLayer base trackNo rgb ss = Layer path trackNo
+        sListLayer base trackNo rgb ss = Layer file trackNo
             base
             (summaryEntry s) (summaryExit s)
             (enumSummaryListDouble 1)
@@ -117,7 +131,7 @@ layersFromFile path = do
 
 addLayersFromFile :: FilePath -> Scope ui -> IO (Scope ui)
 addLayersFromFile path scope = do
-    (newLayers, newBounds, newUTCBounds) <- layersFromFile path
+    (newLayers, newBounds, newUTCBounds) <- layersFromFile =<< openScopeFile path
     let scope' = scopeUpdate newBounds newUTCBounds scope
     return $ scope' { layers = layers scope ++ newLayers }
 
@@ -127,20 +141,24 @@ plotLayers :: ScopeRender m => Scope ui -> m ()
 plotLayers scope = mapM_ f layersByFile
     where
         f :: ScopeRender m => [ScopeLayer] -> m ()
-        f ls = plotFileLayers (fn . head $ ls) ls scope
-        layersByFile = groupBy ((==) `on` fn) (layers scope)
-        fn (ScopeLayer l) = filename l
+        f ls = plotFileLayers (lf . head $ ls) ls scope
+        layersByFile = groupBy ((==) `on` (fd . lf)) (layers scope)
+        lf (ScopeLayer l) = layerFile l
 
-plotFileLayers :: ScopeRender m => FilePath -> [ScopeLayer] -> Scope ui -> m ()
-plotFileLayers path layers scope =
-    flip OffI.fileDriverRandomOBS path $ do
-        I.joinI $ enumCacheFile identifiers $ do
+plotFileLayers :: ScopeRender m => ScopeFile -> [ScopeLayer] -> Scope ui -> m ()
+plotFileLayers file layers scope = when (any visible layers) $
+    scopeEnum file $ do
+        I.seek 0
+        I.joinI $ enumBlock (scopeCF file) $ do
             seekTimeStamp seekStart
             I.joinI . (I.takeWhileE (before seekEnd) >=> I.take 1) $ I.sequence_ is
     where
         v = view scope
-        identifiers = standardIdentifiers
         is = map (plotLayer scope) layers
+
+        visible (ScopeLayer Layer{..}) =
+            maybe False (< endTime) seekStart &&
+            maybe False (> startTime) seekEnd
 
         seekStart = ts (viewStartUTC scope v) <|> viewStartTime scope v
         seekEnd = ts (viewEndUTC scope v) <|> viewEndTime scope v

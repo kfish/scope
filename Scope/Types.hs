@@ -65,6 +65,7 @@ module Scope.Types (
     , ScopePlot(..)
 
     -- * Scope
+    , ScopeFile(..)
     , Scope(..)
     , scopeNew
     , scopeUpdate
@@ -88,6 +89,7 @@ import Data.Maybe
 import Data.Iteratee (Enumeratee)
 import Data.Offset
 import Data.ZoomCache
+import System.Posix
 
 ----------------------------------------------------------------------
 
@@ -230,6 +232,17 @@ data DrawCmd =
 class (Functor m, MonadCatchIO m) => ScopeRender m where
     renderCmds :: [DrawCmd] -> m ()
 
+instance ScopeRender IO where
+    renderCmds = const (return ())
+
+----------------------------------------------------------------------
+
+data ScopeFile = ScopeFile
+    { filename :: FilePath
+    , fd       :: Fd
+    , scopeCF  :: CacheFile
+    }
+
 ----------------------------------------------------------------------
 
 type DrawLayer = [DrawCmd]
@@ -246,7 +259,7 @@ data LayerPlot a = LayerMap (LayerMapFunc a) [DrawLayer]
                  | forall b . LayerFold (LayerFoldFunc a b) [DrawLayer] b
 
 data Layer a = Layer
-    { filename :: FilePath
+    { layerFile :: ScopeFile
     , layerTrackNo :: TrackNo
     , layerBaseUTC :: Maybe UTCTime
     , startTime :: TimeStamp
