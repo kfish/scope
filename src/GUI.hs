@@ -64,7 +64,6 @@ guiMain chan args = do
   savea <- G.actionNew "SAVEA" "Save" (Just "Just a Stub") (Just G.stockSave)
   saveasa <- G.actionNew "SAVEASA" "Save As" (Just "Just a Stub") (Just G.stockSaveAs)
   quita <- G.actionNew "QUITA" "Quit" (Just "Just a Stub") (Just G.stockQuit)
-  quita `G.on` G.actionActivated $ myQuit window chan
 
   let fChooser action label = G.fileChooserDialogNew Nothing (Just window) action
           [(G.stockCancel, G.ResponseCancel), (label, G.ResponseAccept)]
@@ -116,6 +115,8 @@ guiMain chan args = do
   let scope = scopeCairoNew drawingArea adj
   scopeRef <- newIORef scope
 
+  quita `G.on` G.actionActivated $ myQuit scopeRef window chan
+
   mapM_ (modifyIORefM scopeRef . addLayersFromFile) args
   openDialog `G.on` G.response $ myFileOpen scopeRef openDialog
   saveDialog `G.on` G.response $ myFileSave scopeRef saveDialog
@@ -154,8 +155,9 @@ guiMain chan args = do
   G.widgetShowAll window
   G.mainGUI
 
-myQuit :: G.WidgetClass cls => cls -> Chan String -> IO ()
-myQuit window chan = do
+myQuit :: G.WidgetClass cls => IORef (Scope ViewCairo) -> cls -> Chan String -> IO ()
+myQuit scopeRef window chan = do
+  scopeModifyMUpdate scopeRef scopeClose
   G.widgetDestroy window
   myWriteChan chan "quit"
 
