@@ -68,6 +68,7 @@ module Scope.Types (
     , ScopeFile(..)
     , Scope(..)
     , scopeNew
+    , scopeClose
     , scopeUpdate
     , scopeModifyView
 
@@ -84,9 +85,10 @@ module Scope.Types (
 
 import Control.Applicative ((<$>))
 import Control.Monad.CatchIO
-import Data.Time.Clock
-import Data.Maybe
 import Data.Iteratee (Enumeratee)
+import Data.List (nub)
+import Data.Maybe
+import Data.Time.Clock
 import Data.ZoomCache
 import System.Posix
 
@@ -301,6 +303,13 @@ scopeNew ui = Scope {
     , utcBounds = Nothing
     , layers = []
     }
+
+scopeClose :: Scope ui -> IO (Scope ui)
+scopeClose scope = do
+    mapM_ closeFd . nub . map fd' . layers $ scope
+    return scope{bounds=Nothing, utcBounds=Nothing, layers=[]}
+    where
+        fd' (ScopeLayer l) = fd . layerFile $ l
 
 scopeModifyView :: (View ui -> View ui) -> Scope ui -> Scope ui
 scopeModifyView f scope = scope{ view = f (view scope) }
