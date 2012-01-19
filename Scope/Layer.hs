@@ -150,7 +150,7 @@ plotFileLayers file layers scope = when (any visible layers) $
     scopeEnum file $ do
         I.seek 0
         I.joinI $ enumBlock (scopeCF file) $ do
-            seekTimeStamp seekStart
+            seekTimeStamp (scopeCF file) seekStart
             I.joinI . (I.takeWhileE (before seekEnd) >=> I.take 1) $ I.sequence_ is
     where
         v = view scope
