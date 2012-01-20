@@ -22,7 +22,7 @@ module Scope.Layer (
 ) where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
-import Control.Monad (join, replicateM, when, (>=>))
+import Control.Monad (foldM, join, replicateM, (>=>))
 import Control.Monad.Trans (lift)
 import Data.ByteString (ByteString)
 import Data.Function (on)
@@ -137,21 +137,38 @@ addLayersFromFile path scope = do
 
 ----------------------------------------------------------------
 
-plotLayers :: ScopeRender m => Scope ui -> m ()
-plotLayers scope = mapM_ f layersByFile
+plotLayers :: ScopeRender m => Scope ui -> m (Scope ui)
+plotLayers scope0 = foldM f scope0 layersByFile
     where
-        f :: ScopeRender m => [ScopeLayer] -> m ()
-        f ls = plotFileLayers (lf . head $ ls) ls scope
-        layersByFile = groupBy ((==) `on` (fd . lf)) (layers scope)
+        f :: ScopeRender m => Scope ui -> [ScopeLayer] -> m (Scope ui)
+        f scope ls = do
+            file' <- plotFileLayers (lf . head $ ls) ls scope
+            return (updateFiles file' scope)
+
+        updateFiles :: ScopeFile -> Scope ui -> Scope ui
+        updateFiles file scope = scope { layers = map u (layers scope) }
+            where
+                u (ScopeLayer l)
+                    | (fd . layerFile $ l) == (fd file)
+                        = ScopeLayer l{layerFile = file}
+                    | otherwise
+                        = ScopeLayer l
+
+        layersByFile :: [[ScopeLayer]]
+        layersByFile = groupBy ((==) `on` (fd . lf)) (layers scope0)
         lf (ScopeLayer l) = layerFile l
 
-plotFileLayers :: ScopeRender m => ScopeFile -> [ScopeLayer] -> Scope ui -> m ()
-plotFileLayers file layers scope = when (any visible layers) $
-    scopeEnum file $ do
-        I.seek 0
-        I.joinI $ enumBlock (scopeCF file) $ do
-            seekTimeStamp (scopeCF file) seekStart
-            I.joinI . (I.takeWhileE (before seekEnd) >=> I.take 1) $ I.sequence_ is
+plotFileLayers :: ScopeRender m => ScopeFile -> [ScopeLayer] -> Scope ui -> m ScopeFile
+plotFileLayers file layers scope =
+    if (any visible layers)
+        then scopeEnum file $ do
+            I.seek 0
+            I.joinI $ enumBlock (scopeCF file) $ do
+                seekTimeStamp (scopeCF file) seekStart
+                I.joinI . (I.takeWhileE (before seekEnd) >=> I.take 1) $ I.sequence_ is
+                cf <- maybe (scopeCF file) (blkFile . unwrapOffset) <$> I.peek
+                return file{scopeCF = cf}
+        else return file
     where
         v = view scope
         is = map (plotLayer scope) layers

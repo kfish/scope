@@ -203,7 +203,7 @@ updateCanvas ref = do
     let c = canvas . viewUI . view $ scope
     win <- G.widgetGetDrawWindow c
     (width, height) <- G.widgetGetSize c
-    G.renderWithDrawable win $ plotWindow width height scope
+    G.renderWithDrawable win $ plotWindow width height ref
     return True
 
 writePng :: FilePath -> IORef (Scope ViewCairo) -> IO ()
@@ -212,7 +212,7 @@ writePng path ref = do
     let c = canvas . viewUI . view $ scope
     (width, height) <- G.widgetGetSize c
     C.withImageSurface C.FormatARGB32 width height $ \ result -> do
-        C.renderWith result $ plotWindow width height scope
+        C.renderWith result $ plotWindow width height ref
         C.surfaceWriteToPNG result path
 
 ----------------------------------------------------------------
@@ -319,10 +319,11 @@ keyDown ref = do
 
 ----------------------------------------------------------------
 
-plotWindow :: Int -> Int -> Scope ViewCairo -> C.Render ()
-plotWindow width height scope = do
+plotWindow :: Int -> Int -> IORef (Scope ViewCairo) -> C.Render ()
+plotWindow width height ref = do
+    scope <- liftIO $ readIORef ref
     prologue width height
-    plotLayers scope
+    modifyIORefM ref plotLayers
     plotTimeline scope
     plotCursor scope
 
@@ -461,9 +462,9 @@ plotArrow (CanvasX cX) = do
 
 ----------------------------------------------------------------------
 
-modifyIORefM :: IORef a -> (a -> IO a) -> IO ()
+modifyIORefM :: MonadIO m => IORef a -> (a -> m a) -> m ()
 modifyIORefM ref f = do
-    x <- readIORef ref
+    x <- liftIO $ readIORef ref
     x' <- f x
-    writeIORef ref x'
+    liftIO $ writeIORef ref x'
 
