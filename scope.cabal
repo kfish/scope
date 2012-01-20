@@ -1,6 +1,6 @@
 Name:                scope
 
-Version:             0.6.1.0
+Version:             0.7.0.0
 
 Synopsis:            An interactive renderer for plotting time-series data
 
@@ -74,7 +74,7 @@ Library
     old-locale,
     time,
     unix,
-    zoom-cache                >= 1.1.0.0 && < 1.2.0.0
+    zoom-cache                >= 1.2.0.0 && < 1.3.0.0
 
   Exposed-modules:
     Scope.Cairo
@@ -109,7 +109,7 @@ Executable scope
     old-locale,
     time,
     unix,
-    zoom-cache                >= 1.1.0.0 && < 1.2.0.0
+    zoom-cache                >= 1.2.0.0 && < 1.3.0.0
 
 ------------------------------------------------------------------------
 -- Git repo
