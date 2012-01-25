@@ -35,7 +35,6 @@ Library
     MonadCatchIO-transformers >  0.2     && < 0.3,
     mtl                       >= 2.0.0.0 && < 3,
     mwc-random,
-    old-locale,
     time,
     unix,
     zoom-cache                >= 1.2.0.0 && < 1.3.0.0
