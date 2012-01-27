@@ -6,7 +6,14 @@ Synopsis:            An interactive renderer for plotting time-series data
 
 Description:
     scope is a framework for plotting time-series data, using zoom-cache
-    files.
+    files. This package contains the core Scope library; to use it for
+    interactive plotting, you need a rendering backend such as scope-cairo:
+    .
+    <http://hackage.haskell.org/package/scope-cairo>
+    .
+    For more information about zoom-cache files, see the zoom-cache package:
+    .
+    <http://hackage.haskell.org/package/zoom-cache>
 
 License:             BSD3
 License-file:        LICENSE
