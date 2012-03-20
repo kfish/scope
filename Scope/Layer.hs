@@ -23,7 +23,7 @@ module Scope.Layer (
 
 import Control.Applicative ((<$>), (<*>), (<|>))
 import Control.Monad (foldM, join, replicateM, (>=>))
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (MonadIO, lift)
 import Data.ByteString (ByteString)
 import Data.Function (on)
 import qualified Data.IntMap as IM
@@ -86,20 +86,18 @@ layersFromFile file@ScopeFile{..} = do
             (ls1 ++ ls2, unionBounds bs1 bs2, unionBounds ubs1 ubs2)
 
         iterListLayers base (trackNo, color) = listLayers base trackNo color <$>
-            wholeTrackSummaryListDouble trackNo
+            extentsDouble trackNo
 
-        listLayers :: Maybe UTCTime -> TrackNo -> RGB -> [Summary Double]
+        listLayers :: Maybe UTCTime -> TrackNo -> RGB -> LayerExtents
                    -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
-        listLayers base trackNo rgb ss = ([ ScopeLayer (rawListLayer base trackNo extents)
-                                          , ScopeLayer (sListLayer base trackNo rgb extents)
-                                          ]
-                                         , Just (entry, exit)
-                                         , utcBounds (entry, exit) <$> base)
+        listLayers base trackNo rgb extents = ([ ScopeLayer (rawListLayer base trackNo extents)
+                                               , ScopeLayer (sListLayer base trackNo rgb extents)
+                                               ]
+                                              , Just (entry, exit)
+                                              , utcBounds (entry, exit) <$> base)
             where
-                extents = LayerExtents entry exit (maxRange ss)
-                s = head ss
-                entry = summaryEntry s
-                exit = summaryExit s
+                entry = startTime extents
+                exit = endTime extents
                 utcBounds (t1, t2) b = (ub t1, ub t2)
                     where
                         ub = utcTimeFromTimeStamp b
@@ -119,6 +117,17 @@ layersFromFile file@ScopeFile{..} = do
             extents
             (enumSummaryListDouble 1)
             (summaryLayerPlot extents rgb)
+
+extentsDouble :: (Functor m, MonadIO m)
+              => TrackNo -> I.Iteratee [Offset Block] m LayerExtents
+extentsDouble trackNo = sdToExtents <$> wholeTrackSummaryListDouble trackNo
+    where
+        sdToExtents :: [Summary Double] -> LayerExtents
+        sdToExtents ss = LayerExtents entry exit (maxRange ss)
+            where
+                s = head ss
+                entry = summaryEntry s
+                exit = summaryExit s
 
         maxRange :: [Summary Double] -> Double
         maxRange = maximum . map yRange
