@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS -Wall -fno-warn-orphans #-}
 ----------------------------------------------------------------------
 {- |
@@ -31,9 +32,9 @@ instance ScopePlot Double where
 ----------------------------------------------------------------------
 -- Raw data
 
-rawLayerPlotListDouble :: Double -> RGB -> LayerPlot (TimeStamp, [Double])
-rawLayerPlotListDouble maxRange _rgb =
-    LayerFold (plotRawListDouble maxRange) plotRawListInitDouble Nothing
+rawLayerPlotListDouble :: LayerExtents -> RGB -> LayerPlot (TimeStamp, [Double])
+rawLayerPlotListDouble LayerExtents{..} _rgb =
+    LayerFold (plotRawListDouble rangeY) plotRawListInitDouble Nothing
 
 plotRawListInitDouble :: [DrawLayer]
 plotRawListInitDouble = repeat []
@@ -66,9 +67,9 @@ plotRaw1Double f x w (Just y0) (_ts, y) = (cmds, Just y')
 ----------------------------------------------------------------------
 -- Summary data
 
-summaryLayerPlotListDouble :: Double -> RGB -> LayerPlot [Summary Double]
-summaryLayerPlotListDouble maxRange rgb =
-    LayerFold (plotSummaryListDouble maxRange) (plotSummaryListInitDouble rgb) Nothing
+summaryLayerPlotListDouble :: LayerExtents -> RGB -> LayerPlot [Summary Double]
+summaryLayerPlotListDouble LayerExtents{..} rgb =
+    LayerFold (plotSummaryListDouble rangeY) (plotSummaryListInitDouble rgb) Nothing
 
 plotSummaryListInitDouble :: RGB -> [DrawLayer]
 plotSummaryListInitDouble (r, g, b) = concat $ repeat

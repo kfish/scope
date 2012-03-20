@@ -90,12 +90,13 @@ layersFromFile file@ScopeFile{..} = do
 
         listLayers :: Maybe UTCTime -> TrackNo -> RGB -> [Summary Double]
                    -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
-        listLayers base trackNo rgb ss = ([ ScopeLayer (rawListLayer base trackNo ss)
-                                          , ScopeLayer (sListLayer base trackNo rgb ss)
+        listLayers base trackNo rgb ss = ([ ScopeLayer (rawListLayer base trackNo extents)
+                                          , ScopeLayer (sListLayer base trackNo rgb extents)
                                           ]
                                          , Just (entry, exit)
                                          , utcBounds (entry, exit) <$> base)
             where
+                extents = LayerExtents entry exit (maxRange ss)
                 s = head ss
                 entry = summaryEntry s
                 exit = summaryExit s
@@ -104,24 +105,20 @@ layersFromFile file@ScopeFile{..} = do
                         ub = utcTimeFromTimeStamp b
 
         rawListLayer :: Maybe UTCTime -> TrackNo
-                     -> [Summary Double] -> Layer (TimeStamp, [Double])
-        rawListLayer base trackNo ss = Layer file trackNo
+                     -> LayerExtents -> Layer (TimeStamp, [Double])
+        rawListLayer base trackNo extents = Layer file trackNo
             base
-            (summaryEntry s) (summaryExit s)
+            extents
             enumListDouble
-            (rawLayerPlot (maxRange ss) (0,0,0))
-            where
-                s = head ss
+            (rawLayerPlot extents (0,0,0))
 
         sListLayer :: Maybe UTCTime -> TrackNo -> RGB
-                   -> [Summary Double] -> Layer [Summary Double]
-        sListLayer base trackNo rgb ss = Layer file trackNo
+                   -> LayerExtents -> Layer [Summary Double]
+        sListLayer base trackNo rgb extents = Layer file trackNo
             base
-            (summaryEntry s) (summaryExit s)
+            extents
             (enumSummaryListDouble 1)
-            (summaryLayerPlot (maxRange ss) rgb)
-            where
-                s = head ss
+            (summaryLayerPlot extents rgb)
 
         maxRange :: [Summary Double] -> Double
         maxRange = maximum . map yRange
@@ -174,8 +171,8 @@ plotFileLayers file layers scope =
         is = map (plotLayer scope) layers
 
         visible (ScopeLayer Layer{..}) =
-            maybe False (< endTime) seekStart &&
-            maybe False (> startTime) seekEnd
+            maybe False (< (endTime layerExtents)) seekStart &&
+            maybe False (> (startTime layerExtents)) seekEnd
 
         seekStart = ts (viewStartUTC scope v) <|> viewStartTime scope v
         seekEnd = ts (viewEndUTC scope v) <|> viewEndTime scope v

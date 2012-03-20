@@ -77,6 +77,7 @@ module Scope.Types (
 
     -- * Layers
     , Layer(..)
+    , LayerExtents(..)
     , LayerPlot(..)
     , LayerMapFunc
     , LayerFoldFunc
@@ -260,12 +261,17 @@ type LayerFoldFunc a b = Double -> Double -> b -> a -> ([DrawLayer], b)
 data LayerPlot a = LayerMap (LayerMapFunc a) [DrawLayer]
                  | forall b . LayerFold (LayerFoldFunc a b) [DrawLayer] b
 
+data LayerExtents = LayerExtents
+    { startTime :: TimeStamp
+    , endTime :: TimeStamp
+    , rangeY :: Double -- XXX: use minY, maxY to allow asymmetric data
+    }
+
 data Layer a = Layer
     { layerFile :: ScopeFile
     , layerTrackNo :: TrackNo
     , layerBaseUTC :: Maybe UTCTime
-    , startTime :: TimeStamp
-    , endTime :: TimeStamp
+    , layerExtents :: LayerExtents
     , convEnee :: forall m . (Functor m, Monad m) => Enumeratee [Offset Block] [a] m ()
     , plotter :: LayerPlot a
     }
@@ -275,8 +281,8 @@ data ScopeLayer = forall a . Timestampable a => ScopeLayer (Layer a)
 ----------------------------------------------------------------------
 
 class ScopePlot a where
-    rawLayerPlot :: a -> RGB -> LayerPlot (TimeStamp, [a])
-    summaryLayerPlot :: a -> RGB -> LayerPlot [Summary a]
+    rawLayerPlot :: LayerExtents -> RGB -> LayerPlot (TimeStamp, [a])
+    summaryLayerPlot :: LayerExtents -> RGB -> LayerPlot [Summary a]
 
 ----------------------------------------------------------------------
 
