@@ -64,6 +64,9 @@ module Scope.Types (
 
     , ScopePlot(..)
 
+    , ReadMethods(..)
+    , ScopeRead(..)
+
     -- * Scope
     , ScopeFile(..)
     , Scope(..)
@@ -86,7 +89,8 @@ module Scope.Types (
 
 import Control.Applicative ((<$>))
 import Control.Monad.CatchIO
-import Data.Iteratee (Enumeratee)
+import Control.Monad.Trans (MonadIO)
+import Data.Iteratee (Iteratee, Enumeratee)
 import Data.List (nub)
 import Data.Offset
 import Data.Maybe
@@ -283,6 +287,16 @@ data ScopeLayer = forall a . Timestampable a => ScopeLayer (Layer a)
 class ScopePlot a where
     rawLayerPlot :: LayerExtents -> RGB -> LayerPlot (TimeStamp, [a])
     summaryLayerPlot :: LayerExtents -> RGB -> LayerPlot [Summary a]
+
+----------------------------------------------------------------------
+
+data ReadMethods a = ReadMethods
+    { readExtents :: forall m . (Functor m, MonadIO m) => TrackNo -> Iteratee [Offset Block] m LayerExtents
+    , rawConvEnee :: forall m . (Functor m, Monad m) => Enumeratee [Offset Block] [(TimeStamp, [a])] m ()
+    , summaryConvEnee :: forall m . (Functor m, Monad m) => Enumeratee [Offset Block] [[Summary a]] m ()
+    }
+
+data ScopeRead = forall a . (ScopePlot a) => ScopeRead (ReadMethods a)
 
 ----------------------------------------------------------------------
 

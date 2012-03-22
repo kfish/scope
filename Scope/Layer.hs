@@ -23,7 +23,7 @@ module Scope.Layer (
 
 import Control.Applicative ((<$>), (<*>), (<|>))
 import Control.Monad (foldM, join, replicateM, (>=>))
-import Control.Monad.Trans (MonadIO, lift)
+import Control.Monad.Trans (lift)
 import Data.ByteString (ByteString)
 import Data.Function (on)
 import qualified Data.IntMap as IM
@@ -33,12 +33,11 @@ import Data.List (groupBy)
 import Data.Maybe (fromJust, listToMaybe)
 import Data.Offset
 import Data.Time.Clock
-import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
 import System.Posix
 import qualified System.Random.MWC as MWC
 
-import Scope.Numeric.IEEE754()
+import Scope.Numeric.IEEE754 (scopeReadDouble)
 import Scope.Types hiding (b)
 import Scope.View
 
@@ -71,8 +70,8 @@ openScopeFile path = do
 scopeEnum :: ScopeRender m => ScopeFile -> I.Iteratee (Offset ByteString) m a -> m a
 scopeEnum ScopeFile{..} iter = OffI.enumFdRandomOBS scopeBufSize fd iter >>= I.run
 
-layersFromFile :: ScopeFile -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
-layersFromFile file@ScopeFile{..} = do
+layersFromFileBy :: ScopeRead -> ScopeFile -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
+layersFromFileBy (ScopeRead ReadMethods{..}) file@ScopeFile{..} = do
     let base   = baseUTC . cfGlobal $ scopeCF
         tracks = IM.keys . cfSpecs $ scopeCF
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
@@ -86,12 +85,12 @@ layersFromFile file@ScopeFile{..} = do
             (ls1 ++ ls2, unionBounds bs1 bs2, unionBounds ubs1 ubs2)
 
         iterListLayers base (trackNo, color) = listLayers base trackNo color <$>
-            extentsDouble trackNo
+            readExtents trackNo
 
         listLayers :: Maybe UTCTime -> TrackNo -> RGB -> LayerExtents
                    -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
-        listLayers base trackNo rgb extents = ([ ScopeLayer (rawListLayer base trackNo extents)
-                                               , ScopeLayer (sListLayer base trackNo rgb extents)
+        listLayers base trackNo rgb extents = ([ rawListLayer base trackNo extents
+                                               , sListLayer base trackNo rgb extents
                                                ]
                                               , Just (entry, exit)
                                               , utcBounds (entry, exit) <$> base)
@@ -103,41 +102,27 @@ layersFromFile file@ScopeFile{..} = do
                         ub = utcTimeFromTimeStamp b
 
         rawListLayer :: Maybe UTCTime -> TrackNo
-                     -> LayerExtents -> Layer (TimeStamp, [Double])
-        rawListLayer base trackNo extents = Layer file trackNo
+                     -> LayerExtents -> ScopeLayer
+        rawListLayer base trackNo extents = ScopeLayer $ Layer file trackNo
             base
             extents
-            enumListDouble
+            rawConvEnee
             (rawLayerPlot extents (0,0,0))
 
         sListLayer :: Maybe UTCTime -> TrackNo -> RGB
-                   -> LayerExtents -> Layer [Summary Double]
-        sListLayer base trackNo rgb extents = Layer file trackNo
+                   -> LayerExtents -> ScopeLayer
+        sListLayer base trackNo rgb extents = ScopeLayer $ Layer file trackNo
             base
             extents
-            (enumSummaryListDouble 1)
+            summaryConvEnee
             (summaryLayerPlot extents rgb)
 
-extentsDouble :: (Functor m, MonadIO m)
-              => TrackNo -> I.Iteratee [Offset Block] m LayerExtents
-extentsDouble trackNo = sdToExtents <$> wholeTrackSummaryListDouble trackNo
-    where
-        sdToExtents :: [Summary Double] -> LayerExtents
-        sdToExtents ss = LayerExtents entry exit (maxRange ss)
-            where
-                s = head ss
-                entry = summaryEntry s
-                exit = summaryExit s
-
-        maxRange :: [Summary Double] -> Double
-        maxRange = maximum . map yRange
-
-        yRange :: Summary Double -> Double
-        yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
-
 addLayersFromFile :: FilePath -> Scope ui -> IO (Scope ui)
-addLayersFromFile path scope = do
-    (newLayers, newBounds, newUTCBounds) <- layersFromFile =<< openScopeFile path
+addLayersFromFile = addLayersFromFileBy scopeReadDouble
+
+addLayersFromFileBy :: ScopeRead -> FilePath -> Scope ui -> IO (Scope ui)
+addLayersFromFileBy reader path scope = do
+    (newLayers, newBounds, newUTCBounds) <- layersFromFileBy reader =<< openScopeFile path
     let scope' = scopeUpdate newBounds newUTCBounds scope
     return $ scope' { layers = layers scope ++ newLayers }
 

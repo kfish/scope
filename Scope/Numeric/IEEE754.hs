@@ -14,11 +14,18 @@
 -}
 
 module Scope.Numeric.IEEE754 (
+    -- * ScopeRead
+      scopeReadDouble
 ) where
 
+import Control.Applicative ((<$>))
 import Control.Arrow (second)
+import Control.Monad.Trans (MonadIO)
+import Data.Iteratee (Iteratee)
 import Data.Maybe (fromJust)
+import Data.Offset (Offset(..))
 import Data.ZoomCache
+import Data.ZoomCache.Multichannel
 import Data.ZoomCache.Numeric
 
 import Scope.Types hiding (b)
@@ -28,6 +35,27 @@ import Scope.Types hiding (b)
 instance ScopePlot Double where
     rawLayerPlot = rawLayerPlotListDouble
     summaryLayerPlot = summaryLayerPlotListDouble
+
+-- | ScopeRead methods to interpret numeric data as Double
+scopeReadDouble :: ScopeRead
+scopeReadDouble = ScopeRead (ReadMethods extentsDouble enumListDouble (enumSummaryListDouble 1))
+
+extentsDouble :: (Functor m, MonadIO m)
+              => TrackNo -> Iteratee [Offset Block] m LayerExtents
+extentsDouble trackNo = sdToExtents <$> wholeTrackSummaryListDouble trackNo
+    where
+        sdToExtents :: [Summary Double] -> LayerExtents
+        sdToExtents ss = LayerExtents entry exit (maxRange ss)
+            where
+                s = head ss
+                entry = summaryEntry s
+                exit = summaryExit s
+
+        maxRange :: [Summary Double] -> Double
+        maxRange = maximum . map yRange
+
+        yRange :: Summary Double -> Double
+        yRange s = 2 * ((abs . numMin . summaryData $ s) + (abs . numMax . summaryData $ s))
 
 ----------------------------------------------------------------------
 -- Raw data
