@@ -37,7 +37,6 @@ import Data.ZoomCache.Numeric
 import System.Posix
 import qualified System.Random.MWC as MWC
 
-import Scope.Numeric.IEEE754 (scopeReadDouble)
 import Scope.Types hiding (b)
 import Scope.View
 
@@ -70,8 +69,9 @@ openScopeFile path = do
 scopeEnum :: ScopeRender m => ScopeFile -> I.Iteratee (Offset ByteString) m a -> m a
 scopeEnum ScopeFile{..} iter = OffI.enumFdRandomOBS scopeBufSize fd iter >>= I.run
 
-layersFromFileBy :: ScopeRead -> ScopeFile -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
-layersFromFileBy (ScopeRead ReadMethods{..}) file@ScopeFile{..} = do
+layersFromFile :: ScopeRead -> ScopeFile
+               -> IO ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
+layersFromFile (ScopeRead ReadMethods{..}) file@ScopeFile{..} = do
     let base   = baseUTC . cfGlobal $ scopeCF
         tracks = IM.keys . cfSpecs $ scopeCF
     colors <- genColors (length tracks) (0.9, 0.9, 0.9) (0.5)
@@ -84,8 +84,8 @@ layersFromFileBy (ScopeRead ReadMethods{..}) file@ScopeFile{..} = do
         merge (ls1, bs1, ubs1) (ls2, bs2, ubs2) =
             (ls1 ++ ls2, unionBounds bs1 bs2, unionBounds ubs1 ubs2)
 
-        iterListLayers base (trackNo, color) = listLayers base trackNo color <$>
-            readExtents trackNo
+        iterListLayers base (trackNo, color) =
+            listLayers base trackNo color <$> readExtents trackNo
 
         listLayers :: Maybe UTCTime -> TrackNo -> RGB -> LayerExtents
                    -> ([ScopeLayer], Maybe (TimeStamp, TimeStamp), Maybe (UTCTime, UTCTime))
@@ -101,28 +101,19 @@ layersFromFileBy (ScopeRead ReadMethods{..}) file@ScopeFile{..} = do
                     where
                         ub = utcTimeFromTimeStamp b
 
-        rawListLayer :: Maybe UTCTime -> TrackNo
-                     -> LayerExtents -> ScopeLayer
-        rawListLayer base trackNo extents = ScopeLayer $ Layer file trackNo
-            base
-            extents
-            rawConvEnee
-            (rawLayerPlot extents (0,0,0))
+        rawListLayer :: Maybe UTCTime -> TrackNo -> LayerExtents -> ScopeLayer
+        rawListLayer base trackNo extents = ScopeLayer $
+            Layer file trackNo base extents rawConvEnee
+                  (rawLayerPlot extents (0,0,0))
 
-        sListLayer :: Maybe UTCTime -> TrackNo -> RGB
-                   -> LayerExtents -> ScopeLayer
-        sListLayer base trackNo rgb extents = ScopeLayer $ Layer file trackNo
-            base
-            extents
-            summaryConvEnee
-            (summaryLayerPlot extents rgb)
+        sListLayer :: Maybe UTCTime -> TrackNo -> RGB -> LayerExtents -> ScopeLayer
+        sListLayer base trackNo rgb extents = ScopeLayer $
+            Layer file trackNo base extents summaryConvEnee
+                  (summaryLayerPlot extents rgb)
 
-addLayersFromFile :: FilePath -> Scope ui -> IO (Scope ui)
-addLayersFromFile = addLayersFromFileBy scopeReadDouble
-
-addLayersFromFileBy :: ScopeRead -> FilePath -> Scope ui -> IO (Scope ui)
-addLayersFromFileBy reader path scope = do
-    (newLayers, newBounds, newUTCBounds) <- layersFromFileBy reader =<< openScopeFile path
+addLayersFromFile :: ScopeRead -> FilePath -> Scope ui -> IO (Scope ui)
+addLayersFromFile reader path scope = do
+    (newLayers, newBounds, newUTCBounds) <- layersFromFile reader =<< openScopeFile path
     let scope' = scopeUpdate newBounds newUTCBounds scope
     return $ scope' { layers = layers scope ++ newLayers }
 
