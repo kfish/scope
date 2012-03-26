@@ -59,11 +59,11 @@ genColors n rgb a = MWC.withSystemRandom (replicateM n . genColor rgb a)
 scopeBufSize :: Int
 scopeBufSize = 1024
 
-openScopeFile :: FilePath -> IO ScopeFile
-openScopeFile path = do
+openScopeFile :: ScopeRead -> FilePath -> IO ScopeFile
+openScopeFile (ScopeRead ReadMethods{..}) path = do
     fd <- openFd path ReadOnly Nothing defaultFileFlags
     let f = ScopeFile path fd undefined
-    cf <- scopeEnum f (iterHeaders standardIdentifiers)
+    cf <- scopeEnum f (iterHeaders readIdentifiers)
     return f{scopeCF = cf}
 
 scopeEnum :: ScopeRender m => ScopeFile -> I.Iteratee (Offset ByteString) m a -> m a
@@ -113,7 +113,7 @@ layersFromFile (ScopeRead ReadMethods{..}) file@ScopeFile{..} = do
 
 addLayersFromFile :: ScopeRead -> FilePath -> Scope ui -> IO (Scope ui)
 addLayersFromFile reader path scope = do
-    (newLayers, newBounds, newUTCBounds) <- layersFromFile reader =<< openScopeFile path
+    (newLayers, newBounds, newUTCBounds) <- layersFromFile reader =<< openScopeFile reader path
     let scope' = scopeUpdate newBounds newUTCBounds scope
     return $ scope' { layers = layers scope ++ newLayers }
 

@@ -36,9 +36,11 @@ instance ScopePlot Double where
     rawLayerPlot = rawLayerPlotListDouble
     summaryLayerPlot = summaryLayerPlotListDouble
 
+----------------------------------------------------------------------
+
 -- | ScopeRead methods to interpret numeric data as Double
 scopeReadDouble :: ScopeRead
-scopeReadDouble = ScopeRead (ReadMethods extentsDouble enumListDouble (enumSummaryListDouble 1))
+scopeReadDouble = ScopeRead (ReadMethods standardIdentifiers extentsDouble enumListDouble (enumSummaryListDouble 1))
 
 extentsDouble :: (Functor m, MonadIO m)
               => TrackNo -> Iteratee [Offset Block] m LayerExtents

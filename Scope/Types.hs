@@ -291,7 +291,8 @@ class ScopePlot a where
 ----------------------------------------------------------------------
 
 data ReadMethods a = ReadMethods
-    { readExtents :: forall m . (Functor m, MonadIO m) => TrackNo -> Iteratee [Offset Block] m LayerExtents
+    { readIdentifiers :: [IdentifyCodec]
+    , readExtents :: forall m . (Functor m, MonadIO m) => TrackNo -> Iteratee [Offset Block] m LayerExtents
     , rawConvEnee :: forall m . (Functor m, Monad m) => Enumeratee [Offset Block] [(TimeStamp, [a])] m ()
     , summaryConvEnee :: forall m . (Functor m, Monad m) => Enumeratee [Offset Block] [[Summary a]] m ()
     }
