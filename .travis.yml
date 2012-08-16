@@ -1,2 +1,5 @@
 language: haskell
 
+install:
+  - cabal install c2hs
+  - cabal install --enable-tests
