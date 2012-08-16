@@ -37,9 +37,9 @@ Library
 
   Build-Depends:
     bytestring                >= 0.9     && < 0.10,
-    containers                >= 0.2     && < 0.5,
+    containers                >= 0.2     && < 0.6,
     iteratee                  >= 0.8.6.0 && < 0.9,
-    MonadCatchIO-transformers >  0.2     && < 0.3,
+    MonadCatchIO-transformers >  0.2     && < 0.4,
     mtl                       >= 2.0.0.0 && < 3,
     mwc-random,
     time,
